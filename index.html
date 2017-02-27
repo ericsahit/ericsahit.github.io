@@ -61,15 +61,15 @@
 
   
     
-    <h3 class="article-title"><a href="/2017/02/27/hello-world/"><span>Hello World</span></a></h3>
+    <h3 class="article-title"><a href="/2018/09/28/Spark堆外内存管理总结/"><span>Spark堆外内存管理总结</span></a></h3>
     
   
 
   <div class="article-top-meta">
     <span class="posted-on">
-      <a href="/2017/02/27/hello-world/" rel="bookmark">
-        <time class="entry-date published" datetime="2017-02-27T12:08:26.000Z">
-          2017-02-27
+      <a href="/2018/09/28/Spark堆外内存管理总结/" rel="bookmark">
+        <time class="entry-date published" datetime="2018-09-28T06:25:00.000Z">
+          2018-09-28
         </time>
       </a>
     </span>
@@ -81,15 +81,43 @@
   <div class="article-content">
     <div class="entry">
       
-        <p>Welcome to <a href="https://hexo.io/" target="_blank" rel="external">Hexo</a>! This is your very first post. Check <a href="https://hexo.io/docs/" target="_blank" rel="external">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="https://hexo.io/docs/troubleshooting.html" target="_blank" rel="external">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues" target="_blank" rel="external">GitHub</a>.</p>
-<h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">$ hexo new <span class="string">"My New Post"</span></div></pre></td></tr></table></figure>
-<p>More info: <a href="https://hexo.io/docs/writing.html" target="_blank" rel="external">Writing</a></p>
-<h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">$ hexo server</div></pre></td></tr></table></figure>
-<p>More info: <a href="https://hexo.io/docs/server.html" target="_blank" rel="external">Server</a></p>
-<h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">$ hexo generate</div></pre></td></tr></table></figure>
-<p>More info: <a href="https://hexo.io/docs/generating.html" target="_blank" rel="external">Generating</a></p>
-<h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">$ hexo deploy</div></pre></td></tr></table></figure>
-<p>More info: <a href="https://hexo.io/docs/deployment.html" target="_blank" rel="external">Deployment</a></p>
+        <h2 id="现状"><a href="#现状" class="headerlink" title="现状"></a>现状</h2><p>目前spark1.6版本，只能实现Execution memory部分使用堆外内存，不能实现Storage memory存储RDD使用堆外内存。</p>
+<p>对于堆外内存的使用，目前非SQL类Spark应用使用较少，shuffle和aggregation等场景（<em>具体使用需要跟踪下代码进行总结分类</em>）下会使用到，因为其Schema信息相对于SQL的RDD较复杂，而SQL中的RDD数据均为简单类型数据，因此SQL类应用可以在join时候也使用到堆外内存，直接基于二进制的数据进行处理。</p>
+<p>目前对于堆外内存的支持还不完善，所以Spark在1.5中对于SQL默认开启堆外内存使用，而到1.6版本就默认开启，但<strong>是否默认使用非堆外内存还需要确认下</strong>。<br>对于非SQL类应用，使用总开关进行控制，<strong>默认关闭</strong>。</p>
+<h2 id="未来"><a href="#未来" class="headerlink" title="未来"></a>未来</h2><ol>
+<li>在Spark2.0时候会去掉对于Tachyon的支持，为使用自身的堆外存储做准备。</li>
+</ol>
+<p>原文参考：<a href="https://github.com/apache/spark/pull/10752" target="_blank" rel="external">https://github.com/apache/spark/pull/10752</a></p>
+<blockquote>
+<p>This pull request removes the external block store API. This is rarely used, and the file system interface is actually a better, more standard way to interact with external storage systems.</p>
+</blockquote>
+<ol>
+<li>在Spark2.x时候会实现RDD存储<code>OFF_HEP</code>级别使用自身的堆外存储机制。<strong>如果RDD存储需要使用堆外内存，则必须序列化</strong></li>
+</ol>
+<p>原文参考：<a href="https://github.com/apache/spark/pull/11805" target="_blank" rel="external">https://github.com/apache/spark/pull/11805</a></p>
+<blockquote>
+<p>Updated semantics of OFF_HEAP storage level: In Spark 1.x, the OFF_HEAP storage level indicated that an RDD should be cached in Tachyon. Spark 2.x removed the external block store API that Tachyon caching was based on (see #10752 / SPARK-12667), so OFF_HEAP became an alias for MEMORY_ONLY_SER. As of this patch, OFF_HEAP means “serialized and cached in off-heap memory or on disk”. Via the StorageLevel constructor, useOffHeap can be set if serialized == true and can be used to construct custom storage levels which support replication.</p>
+</blockquote>
+<h2 id="堆外内存相关设置参数"><a href="#堆外内存相关设置参数" class="headerlink" title="堆外内存相关设置参数"></a>堆外内存相关设置参数</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">spark.unsafe.offheap</div><div class="line">设置对于Execution memory是否开启offheap，默认关闭。只限于Exeution memory部分使用。</div><div class="line"></div><div class="line">spark.sql.unsafe.enabled</div><div class="line">设置对于SQL是否开启offheap，在1.5中新增，在1.6已经默认开启。</div></pre></td></tr></table></figure>
+<h2 id="内存请求量设置"><a href="#内存请求量设置" class="headerlink" title="内存请求量设置"></a>内存请求量设置</h2><h3 id="YARN-mode"><a href="#YARN-mode" class="headerlink" title="YARN mode"></a>YARN mode</h3><ol>
+<li><p>executorMemory：由<code>spark.executor.memory</code>参数决定，如果不存在则取环境变量里的<code>SPARK_EXECUTOR_MEMORY</code>， </p>
+</li>
+<li><p>overhead：由参数<code>spark.yarn.executor.memoryOverhead</code>来控制，如果没有设置则取<code>executorMemory * 0.1</code>，并且满足最小384MB。用来作为预留内存，为堆外、JVM管理（PermGen、Thread Stack等）等使用。</p>
+<ul>
+<li>预留内存：防止内存加堆外内存总和超过<code>executorMemory+overhead</code></li>
+<li>PermGen：永生代使用，</li>
+</ul>
+</li>
+<li>的</li>
+</ol>
+<p>YARN只负责Container的逻辑值在调度系统中的分配，并不关注Container实际内存的需求。</p>
+<h2 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h2><ol>
+<li><a href="https://databricks.com/blog/2015/04/28/project-tungsten-bringing-spark-closer-to-bare-metal.html" target="_blank" rel="external">tungsten计划介绍</a></li>
+<li><a href="https://issues.apache.org/jira/secure/attachment/12765646/unified-memory-management-spark-10000.pdf" target="_blank" rel="external">Spark统一内存管理设计文档</a></li>
+<li><a href="http://doc.mbalib.com/view/2492dd6afd2b7efe621d154bbc73a00e.html" target="_blank" rel="external">Tachyon最近介绍</a></li>
+<li><a href="http://spark.apache.org/docs/latest/tuning.html" target="_blank" rel="external">Spark1.6内存管理</a></li>
+<li><a href="https://0x0fff.com/spark-memory-management/" target="_blank" rel="external">统一内存管理介绍</a></li>
+</ol>
 
       
     </div>
@@ -100,7 +128,796 @@
     <div class="article-meta pull-left">
 
     
+      
 
+    <span class="post-categories">
+      <i class="icon-categories"></i>
+        <a href="/categories/Spark/">Spark</a>, <a href="/categories/Spark/Memory/">Memory</a>
+    </span>
+    
+
+    
+    
+
+    <span class="post-tags">
+      <i class="icon-tags"></i>
+        <a href="/tags/Spark/">Spark</a><a href="/tags/MemoryManagement/">MemoryManagement</a>
+    </span>
+    
+
+    </div>
+
+    
+  </div>
+</article>
+
+
+
+  <article>
+
+  
+    
+    <h3 class="article-title"><a href="/2016/12/25/Namenode内存分析/"><span>Namenode内存分析</span></a></h3>
+    
+  
+
+  <div class="article-top-meta">
+    <span class="posted-on">
+      <a href="/2016/12/25/Namenode内存分析/" rel="bookmark">
+        <time class="entry-date published" datetime="2016-12-25T12:55:11.000Z">
+          2016-12-25
+        </time>
+      </a>
+    </span>
+  </div>
+
+
+  
+
+  <div class="article-content">
+    <div class="entry">
+      
+        <p>最近在学习JVM内存调优,顺便对于Namenode的内存分析了一把,发现还是有很多<code>有意思</code>但是<code>危险</code>的地方。</p>
+<h2 id="1-结论"><a href="#1-结论" class="headerlink" title="1 结论"></a>1 结论</h2><h3 id="1-1-Namenode内存使用和趋势"><a href="#1-1-Namenode内存使用和趋势" class="headerlink" title="1.1 Namenode内存使用和趋势"></a>1.1 Namenode内存使用和趋势</h3><ul>
+<li><p>截止2016年12月22号14点,集群的文件和文件夹总数量为<code>293444427</code>,block数量为<code>348566581</code>,堆内存总大小为<code>148GB</code>,Old区大小为<code>130GB</code>,堆内存使用为<code>110GB~126GB</code>。 </p>
+<p>目前Namenode常驻内存(详细定义请参考<code>2.1</code>章节)使用为<code>110GB</code>,Old区使用率<code>84%</code>,即将突破<code>90%</code>,需要采取扩大内存(降低文件数量)等措施来规避<code>CMS GC降级为压缩式GC带来的漫长STW</code>风险。</p>
+</li>
+<li><p>依据DCM(我们的集群监控系统)数据,从12月1号到22号,集群文件数增长了<code>293444427 - 275847816=17596611</code>,大约1千7百万,常驻内存增长了<code>110GB - 103GB = 7GB</code>。<br>按照这个速度,<code>一个月</code>内堆内存常驻使用将会突破<code>90%</code>警戒线。</p>
+</li>
+<li><p>如果堆内存加大到<code>180GB</code>,全部给Old区的话增加30GB可用内存,按照估算(估算方法参考<code>2.3</code>章节)可以容纳的文件数在<code>362804019</code>左右,还可以增长的文件数需要控制在<code>69359591</code>以内,大约7千万文件量。</p>
+</li>
+</ul>
+<h3 id="1-2-Namenode内存配置修改建议"><a href="#1-2-Namenode内存配置修改建议" class="headerlink" title="1.2 Namenode内存配置修改建议"></a>1.2 Namenode内存配置修改建议</h3><h4 id="1-2-1-提升堆内存大小，降低Old区使用比例，规避压缩式GC的STW风险。"><a href="#1-2-1-提升堆内存大小，降低Old区使用比例，规避压缩式GC的STW风险。" class="headerlink" title="1.2.1 提升堆内存大小，降低Old区使用比例，规避压缩式GC的STW风险。"></a>1.2.1 提升堆内存大小，降低Old区使用比例，规避压缩式GC的STW风险。</h4><p>从2016年8月份至今,老年代的最大使用曾经达到<code>122.25g(94%)</code>，目前使用<code>110g(84%)</code>，平均使用达到<code>116.1g（89%）</code>。<br>堆内存增加到180g后能容纳的文件数在<code>362804019</code>左右,增长的文件数需要控制在<code>69359591</code>以内,大约7千万文件量。</p>
+<p>目前Namenode常驻内存内存使用为<code>110GB</code>,Old区使用率<code>84%</code>,按照这个月的增长速度估算,一个月内堆内存使用将会突破<code>90%</code>警戒线。<br>依据DCM数据,从12月1号到22号,集群文件数从<code>275847816</code>增长到<code>293444427</code>大约增长了<code>1千7百万</code>,<br>堆内存常驻内存增长了从<code>103GB</code>增长到<code>110GB</code>,增长了<code>7GB</code>。</p>
+<p>详细分析请参考<code>2. Name内存利用分析</code>章节。</p>
+<p>修改:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">-Xms180g -Xmx180g</div></pre></td></tr></table></figure></p>
+<h4 id="1-2-2-增加ParNew和CMS-GC使用的线程数量，目前是10，可以提升到18（24核下的默认值）。"><a href="#1-2-2-增加ParNew和CMS-GC使用的线程数量，目前是10，可以提升到18（24核下的默认值）。" class="headerlink" title="1.2.2 增加ParNew和CMS GC使用的线程数量，目前是10，可以提升到18（24核下的默认值）。"></a>1.2.2 增加ParNew和CMS GC使用的线程数量，目前是10，可以提升到18（24核下的默认值）。</h4><p>提升ParNew和CMS的GC效率，降低ParNew STW时间，<br>缓解在临时对象数量激增时发生ParNew GC频繁导致服务延迟增加，吞吐量降低问题。</p>
+<p>详细分析请参考<code>3. Namenode启动参数分析</code>章节。</p>
+<p>修改或者去掉以使用默认值:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">-XX:ParallelGCThreads=18</div></pre></td></tr></table></figure></p>
+<h4 id="1-2-3-设置当Old区域使用达到80-时候-提前启动CMS-GC。降低压缩式GC的STW风险。"><a href="#1-2-3-设置当Old区域使用达到80-时候-提前启动CMS-GC。降低压缩式GC的STW风险。" class="headerlink" title="1.2.3 设置当Old区域使用达到80%时候,提前启动CMS GC。降低压缩式GC的STW风险。"></a>1.2.3 设置当Old区域使用达到<code>80%</code>时候,提前启动CMS GC。降低压缩式GC的STW风险。</h4><p>目前GC配置缺少<code>UseCMSInitiatingOccupancyOnly</code>这项,<br>所以CMS GC启动是根据JVM自动确定,时机不确定而且有缺陷(来源于社区)。</p>
+<p>目前我们的Namenode Old区常驻内存使用率高,所以不适合设置比较低的值,常驻内存使用率高于这个值会造成频繁无效的CMS GC。<br>而如果设置过高的话,会造成Full GC风险升高。</p>
+<p>详细分析请参考<code>3. Namenode启动参数分析</code>章节。</p>
+<p>修改和增加:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">-XX:CMSInitiatingOccupancyFraction=80</div><div class="line">-XX:+UseCMSInitiatingOccupancyOnly</div></pre></td></tr></table></figure></p>
+<h4 id="1-2-4-设置Java8的永生代初始值MetaspaceSize为较大的值512m-避免MetaSpace用满需要增长而引发的Full-GC。"><a href="#1-2-4-设置Java8的永生代初始值MetaspaceSize为较大的值512m-避免MetaSpace用满需要增长而引发的Full-GC。" class="headerlink" title="1.2.4 设置Java8的永生代初始值MetaspaceSize为较大的值512m,避免MetaSpace用满需要增长而引发的Full GC。"></a>1.2.4 设置Java8的永生代初始值MetaspaceSize为较大的值512m,避免<code>MetaSpace用满需要增长</code>而引发的Full GC。</h4><p>参考文献[8],Java8采用MetaSpace替代PermGen,MetaSpace对于64bit Server模式的JVM默认初始大小<code>21m</code>,比较小。<br>另外,Java8的永生代默认没有上限,在用户代码不规范时候有可能发生无限增长,但是对于Namnode这种稳定运行的程序没有太大问题。</p>
+<p>增加:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">-XX:MetaspaceSize=512m</div></pre></td></tr></table></figure></p>
+<h4 id="1-2-5-打印更多的GC日志信息：JVM启动参数-晋升分布-停顿时间等。"><a href="#1-2-5-打印更多的GC日志信息：JVM启动参数-晋升分布-停顿时间等。" class="headerlink" title="1.2.5 打印更多的GC日志信息：JVM启动参数,晋升分布,停顿时间等。"></a>1.2.5 打印更多的GC日志信息：JVM启动参数,晋升分布,停顿时间等。</h4><p>JVM启动参数:可以查看一些隐藏和最终被设置的参数。</p>
+<p>晋升分布作为调整<code>-XX:MaxTenuringThreshold</code>参数和GC Young区域调优的重要参考。</p>
+<p>停顿时间作为衡量JVM用户程序执行吞吐率的重要参考。</p>
+<p>增加:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">-XX:+PrintCommandLineFlags</div><div class="line">-XX:+PrintTenuringDistribution</div><div class="line">-XX:+PrintGCApplicationStoppedTime</div></pre></td></tr></table></figure></p>
+<h3 id="1-3-其他建议"><a href="#1-3-其他建议" class="headerlink" title="1.3 其他建议"></a>1.3 其他建议</h3><ul>
+<li>控制集群的目录树/文件数/Block数量,采用合并小文件等措施,降低Namenode内存压力。</li>
+<li>调整默认blockSize为256m,降低block数量。缺点是只能控制增量数据,修改存量数据代价较大。</li>
+<li>调研G1内存回收策略。</li>
+</ul>
+<h2 id="2-Namenode内存利用分析"><a href="#2-Namenode内存利用分析" class="headerlink" title="2 Namenode内存利用分析"></a>2 Namenode内存利用分析</h2><h3 id="2-1-Namenode常驻内存使用和估算公式"><a href="#2-1-Namenode常驻内存使用和估算公式" class="headerlink" title="2.1 Namenode常驻内存使用和估算公式"></a>2.1 Namenode常驻内存使用和估算公式</h3><blockquote>
+<p>定义<code>Namenode常驻内存使用</code>是位于Old区,存活稳定,不可GC的内存使用部分。这部分内存使用主要随着目录/文件/Block数量的变化而变化。</p>
+</blockquote>
+<p>根据文献[3][4]和代码阅读,Namenode<code>常驻内存数据结构</code>按照数据量主要包含以下两部分(节点和网络拓扑信息/LeaseManager/SnapShotManager/CacheManager等部分由于数据量较小忽略):</p>
+<ul>
+<li><ol>
+<li><p>目录和文件树 Namespace</p>
+<p>a) Directory数据结构总大小: <code>SumDir = (24+96+44+48) * CountDir + 8 * (CountDir + CountFile)</code></p>
+<p>b) File数据结构总大小: <code>SumFile = (24+96+48) * CountFile + 8 * CountBlock</code></p>
+</li>
+</ol>
+</li>
+</ul>
+<p>合并上述 a) 和 b) 两部分,Namespace总大小: <code>SumNamespace = SumDir + SumFile = 220 * CountDir + 176 * CountFile + 8 * CountBlock</code></p>
+<ul>
+<li><ol>
+<li>文件与块的映射 BlockMap</li>
+</ol>
+</li>
+</ul>
+<p>BlockMap数据结构总大小: <code>SumBlockMap = 16 + 24 + JVMMemoryNN * 0.02 + (40 + 128) * CountBlock</code></p>
+<ul>
+<li>计算NN内存使用</li>
+</ul>
+<p>合并上述 1 和 2 两部分,得到NN内存使用总大小估算公式：<br><code>MemoryUsedNN = SumNamespace + SumBlockMap = 220 * CountDir + 176 * CountFile + 176 * CountBlock + JVMMemoryNN * 0.02</code></p>
+<p>假设文件数和目录数为1:1,NN内存使用总大小可以简化为:<br><code>MemoryUsedNN = SumNamespace + SumBlockMap = 198 * CountDirAndFile + 176 * CountBlock + JVMMemoryNN * 0.02</code></p>
+<blockquote>
+<p>如果文件数相对目录数量数量较多,上述估算结果会偏小一些</p>
+</blockquote>
+<h3 id="2-2-公司集群Namenode内存使用估算"><a href="#2-2-公司集群Namenode内存使用估算" class="headerlink" title="2.2 公司集群Namenode内存使用估算"></a>2.2 公司集群Namenode内存使用估算</h3><p>截止2016年12月22号14点,公司集群的文件和文件夹总数量为<code>293444427</code>,block数量为<code>348566581</code>,堆内存总大小为<code>148GB</code>,Old区大小为<code>130GB</code>,堆内存使用为<code>110GB~126GB</code>。</p>
+<p>Old区常驻使用率在<code>84%</code>(110/130),已经比较严重。</p>
+<p>按照上述公式,得NN内存常驻使用总大小为:<code>MemoryUsedNN = 198 * 293444427(54.1GB) + 176 * 348566581(57.1GB) + 0.02 * 148GB ~= 114.2GB(54.1G+57.1+3.0GB)</code></p>
+<p>估算值与实际在GC日志中看到的ParNew GC和CMS GC后的内存使用<code>110GB</code>(主要为常驻内存使用)相比,误差<code>3.5%</code>,估计较为准确,误差应该主要由于文件和目录比例大于1:1导致。</p>
+<h3 id="2-3-内存分析结论"><a href="#2-3-内存分析结论" class="headerlink" title="2.3 内存分析结论"></a>2.3 内存分析结论</h3><ol>
+<li><p>目前Namenode常驻内存内存使用为<code>110GB</code>,Old区使用率<code>84%</code>,即将突破<code>90%</code>,需要采取扩大内存(降低文件数量)等措施来规避STW风险。</p>
+</li>
+<li><p>依据DCM数据,从12月1号到22号,集群文件数增长了<code>293444427 - 275847816=17596611</code>,大约1千7百万,堆内存常驻内存增长了<code>110GB - 103GB = 7GB</code>。</p>
+<blockquote>
+<p>按照这个速度,<code>一个月</code>内堆内存使用将会突破<code>90%</code>警戒线</p>
+</blockquote>
+</li>
+<li><p>如果堆内存增大到180GB,Old区域增加30GB,按照上述估算公式和常驻内存使用量85%,<br>能容纳的文件数在<code>160 * 0.85 / 110 * 293444427 = 362804019</code>左右,也就是说还可以增长的文件数需要控制在<code>69359591</code>以内,大约7千万文件量。</p>
+</li>
+</ol>
+<h3 id="2-4-可以采取的措施"><a href="#2-4-可以采取的措施" class="headerlink" title="2.4 可以采取的措施"></a>2.4 可以采取的措施</h3><ol>
+<li><p>增大Namenode堆内存设置,目前是150GB,可以尝试增加到180GB。降低Old区使用比例,规避压缩式GC的STW风险。</p>
+<blockquote>
+<p>增大Old区域的堆内存,缺点是会使得CMS GC的<code>Remark</code>时间增长,目前是<code>0.8s</code>左右,影响不大。<br>参考文献[4]推荐,再进一步加大堆内存会有<code>JVM内存管理</code>的额外风险。</p>
+</blockquote>
+</li>
+<li><p>调整blockSize为256MB,降低block数量。缺点是只能修改增量数据。</p>
+</li>
+</ol>
+<h2 id="3-Namenode启动参数分析"><a href="#3-Namenode启动参数分析" class="headerlink" title="3. Namenode启动参数分析"></a>3. Namenode启动参数分析</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">/usr/local/jdk1.8.0_77/bin/java -Dproc_namenode -Xmx1024m -Djava.net.preferIPv4Stack=true -Dhadoop.log.dir=/usr/local/hadoop-2.7.2/logs -Dhadoop.log.file=hadoop.log -Dhadoop.home.dir=/usr/local/hadoop-2.7.2 -Dhadoop.id.str=hadoop -Dhadoop.root.logger=INFO,console -Djava.library.path=/usr/local/hadoop-2.7.2/lib/native -Dhadoop.policy.file=hadoop-policy.xml -Djava.net.preferIPv4Stack=true -Djava.net.preferIPv4Stack=true -Djava.net.preferIPv4Stack=true -Dhadoop.log.dir=/usr/local/hadoop-2.7.2/logs -Dhadoop.log.file=hadoop-hadoop-namenode-bigdata-hdp-apachenn01.xg01.log -Dhadoop.home.dir=/usr/local/hadoop-2.7.2 -Dhadoop.id.str=hadoop -Dhadoop.root.logger=INFO,RFA -Djava.library.path=/usr/local/hadoop-2.7.2/lib/native -Dhadoop.policy.file=hadoop-policy.xml -Djava.net.preferIPv4Stack=true -Dhadoop.security.logger=INFO,RFAS -Dhdfs.audit.logger=INFO,NullAppender -Dhadoop.security.logger=INFO,RFAS -Dhdfs.audit.logger=INFO,NullAppender -Dhadoop.security.logger=INFO,RFAS -Dhdfs.audit.logger=INFO,NullAppender -Xms150g -Xmx150g -Xmn20g -XX:SurvivorRatio=8 -XX:ParallelGCThreads=10 -XX:MaxTenuringThreshold=15 -XX:+UseParNewGC -XX:+UseConcMarkSweepGC -XX:CMSInitiatingOccupancyFraction=70 -verbose:gc -XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=2 -XX:GCLogFileSize=512M -Xloggc:/usr/local/hadoop-2.7.2/logs/namenode_gc.log -Xms150g -Xmx150g -Xmn20g -XX:SurvivorRatio=8 -XX:ParallelGCThreads=10 -XX:MaxTenuringThreshold=15 -XX:+UseParNewGC -XX:+UseConcMarkSweepGC -XX:CMSInitiatingOccupancyFraction=70 -verbose:gc -XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=2 -XX:GCLogFileSize=512M -Xloggc:/usr/local/hadoop-2.7.2/logs/namenode_gc.log -Xms150g -Xmx150g -Xmn20g -XX:SurvivorRatio=8 -XX:ParallelGCThreads=10 -XX:MaxTenuringThreshold=15 -XX:+UseParNewGC -XX:+UseConcMarkSweepGC -XX:CMSInitiatingOccupancyFraction=70 -verbose:gc -XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=2 -XX:GCLogFileSize=512M -Xloggc:/usr/local/hadoop-2.7.2/logs/namenode_gc.log -Dhadoop.security.logger=INFO,RFAS org.apache.hadoop.hdfs.server.namenode.NameNode</div></pre></td></tr></table></figure>
+<p>其中GC相关的关键属性（由于重复配置,GC相关的属性重复了三遍,以最后为准）：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">-Xms150g -Xmx150g -Xmn20g -XX:SurvivorRatio=8 -XX:ParallelGCThreads=10 -XX:MaxTenuringThreshold=15 </div><div class="line">-XX:+UseParNewGC -XX:+UseConcMarkSweepGC -XX:CMSInitiatingOccupancyFraction=70 </div><div class="line">-verbose:gc -XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=2 -XX:GCLogFileSize=512M</div></pre></td></tr></table></figure></p>
+<ul>
+<li><code>-Xms150g -Xmx150g</code>：堆内存大小最大和最小都是150g</li>
+<li><code>-Xmn20g</code>：新生代大小为20g，等于eden+2*survivor，意味着老年代为150-20=130g。</li>
+<li><code>-XX:SurvivorRatio=8</code>：Eden和Survivor的大小比值为8，意味着两个Survivor区和一个Eden区的比值为2：8，一个Survivor占整个年轻代的1/10</li>
+<li><code>-XX:ParallelGCThreads=10</code>：设置ParNew GC的线程并行数，默认为<code>8 + (Runtime.availableProcessors - 8) * 5/8</code>，24核机器为18。<strong>这里是否需要提升？</strong></li>
+<li><code>-XX:MaxTenuringThreshold=15</code>：设置对象在年轻代的最大年龄，超过这个年龄则会晋升到老年代</li>
+<li><code>-XX:+UseParNewGC</code>：设置新生代使用Parallel New GC</li>
+<li><code>-XX:+UseConcMarkSweepGC</code>：设置老年代使用CMS GC，当此项设置时候自动设置新生代为ParNew GC</li>
+<li><code>-XX:CMSInitiatingOccupancyFraction=70</code>：<br>老年代第一次占用达到该百分比时候，就会引发CMS的第一次垃圾回收周期。后继CMS GC由HotSpot自动优化计算得到。<br>如果后继也想指定老年代使用达到百分比,然后就进行CMS GC参数为<code>-XX:+UseCMSInitiatingOccupancyOnly</code>，建议同时设置。<br><strong>是否应该同时设置-XX:+UseCMSInitiatingOccupancyOnly？</strong></li>
+</ul>
+<blockquote>
+<p>这个值如果设置的太大,则很可能避免不了Full GC;如果设置的太小,CMS GC会进行的比较频繁。</p>
+</blockquote>
+<p>对于Namenode这样的常驻内存使用主要是稳定的目录文件数信息,而且随着文件数的增长堆内存使用稳定增长的场景,<br>CMS GC很多情况都是做的无用功,从log里也可以观察<code>CMS并发清除前后的堆内存使用</code>来验证,现象为CMS并发清除前后的堆内存使用差距很小,表明Old区域可以回收的对象基本诶呦。</p>
+<p>目前GC配置缺少<code>UseCMSInitiatingOccupancyOnly</code>这项,所以CMS GC启动是根据JVM自动确定,时机不确定而且有缺陷(来源于社区)。</p>
+<p>目前线上的Namenode常驻内存使用率高,所以不适合设置比较低的值,会造成频繁无效的CMS GC。<br>如果设置太高的话,会造成Full GC风险升高。<br>因此可以考虑将这个值设置比较大,例如<code>80~85</code>。</p>
+<h2 id="4-GC-log分析"><a href="#4-GC-log分析" class="headerlink" title="4. GC log分析"></a>4. GC log分析</h2><h3 id="4-1-Minor-GC日志解析"><a href="#4-1-Minor-GC日志解析" class="headerlink" title="4.1 Minor GC日志解析"></a>4.1 Minor GC日志解析</h3><p>根据上述分析，新生代大小为20g，Eden为16g，Survivor大小2g，老年代大小为130g<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line">[GC (Allocation Failure) 2016-11-04T16:12:57.274+0800: 11243291.242: </div><div class="line">[ParNew: 16831941K-&gt;60946K(18874368K), 0.1122703 secs] </div><div class="line">126061168K-&gt;109291366K(155189248K), 0.1126967 secs] </div><div class="line">[Times: user=1.09 sys=0.00, real=0.11 secs]</div><div class="line"></div><div class="line">[GC (Allocation Failure) 2016-09-06T17:55:38.334+0800: 6151960.699: </div><div class="line">[ParNew: 16844397K-&gt;85085K(18874368K), 0.1314400 secs] </div><div class="line">116885867K-&gt;100127390K(155189248K), 0.1318411 secs] </div><div class="line">[Times: user=1.29 sys=0.01, real=0.13 secs]</div></pre></td></tr></table></figure></p>
+<p>新生代与CMS配套的GC算法为多线程ParNew或者单线程DefNew。</p>
+<ol>
+<li><p><code>[ParNew: 16844397K-&gt;85085K(18874368K), 0.1314400 secs]</code><br>其中，<code>16844397K</code>表示GC前的新生代占用量，<code>85085K</code>表示GC后的新生代占用量，GC后Eden和一个Survivor为空，所以<code>85085K</code>也是另一个Survivor的占用量。括号中的<code>18874368K</code>是Eden+一个被占用Survivor的总和（18g）。<code>0.1122703 secs</code>是新生代回收不可达对象的时间。</p>
+<blockquote>
+<p>可以看到每次ParNew GC后，基本对象都会被回收或者晋升，只剩下85085K=83M的数据</p>
+</blockquote>
+</li>
+<li><p><code>116885867K-&gt;100127390K(155189248K), 0.1318411 secs]</code><br>其中，分别是Java堆在垃圾回收前后的大小，和Java堆大小。说明堆使用为116885867K=111.47g，回收大小为100127390K=95.49g，堆大小为155189248K=148g（去掉其中一个Survivor），回收了16g空间，耗时0.13秒。</p>
+<blockquote>
+<p><strong>从而可以推算老年代大小为148g-18g=130g，与上述参数一致。老年代使用大小为95.49g-85085K=95.41g，使用率73.4%</strong>。</p>
+</blockquote>
+</li>
+<li><p><code>[Times: user=1.29 sys=0.01, real=0.13 secs]</code><br>其中，时间=新生代垃圾收集+对象提升到老年代+垃圾清理。user指的是GC消耗的用户态度CPU时间，sys是内核态CPU时间，real指的是从开始到结束的时间计时。real包含了在GC过程中，IO或线程阻塞等待耗时。而user是CPU计算时间，在多核时通常会高于real时间。</p>
+</li>
+</ol>
+<h3 id="4-2-CMS-GC日志解析"><a href="#4-2-CMS-GC日志解析" class="headerlink" title="4.2 CMS GC日志解析"></a>4.2 CMS GC日志解析</h3><p>利用工具分析的结果(请把本项目git clone到本地再打开文件):<br><a href="docs/GC Easy - Universal Garbage Collection Log Analyzer.htm">GCLog分析</a></p>
+<h3 id="4-3-GC-日志相关参数"><a href="#4-3-GC-日志相关参数" class="headerlink" title="4.3 GC 日志相关参数"></a>4.3 GC 日志相关参数</h3><p>详见文献[9]</p>
+<h3 id="4-4-GC-日志抽取指标-未完成"><a href="#4-4-GC-日志抽取指标-未完成" class="headerlink" title="4.4 GC 日志抽取指标(未完成)"></a>4.4 GC 日志抽取指标(未完成)</h3><ol>
+<li>吞吐率=(程序运行时间-GC停顿时间)/程序运行时间1</li>
+<li>Old区域常驻内存使用率: 定义在CMS GC的sweep后,old区域的内存使用率</li>
+<li>对象晋升率:定义为ParNew GC前后,Old区域内存使用差值</li>
+<li>。。。</li>
+</ol>
+<h2 id="5-GC原理"><a href="#5-GC原理" class="headerlink" title="5. GC原理"></a>5. GC原理</h2><h3 id="5-1-Minor-GC的触发条件"><a href="#5-1-Minor-GC的触发条件" class="headerlink" title="5.1 Minor GC的触发条件"></a>5.1 Minor GC的触发条件</h3><h3 id="5-2-CMS-GC的触发条件"><a href="#5-2-CMS-GC的触发条件" class="headerlink" title="5.2 CMS GC的触发条件"></a>5.2 CMS GC的触发条件</h3><h3 id="5-3-CMS-Full-GC的触发条件"><a href="#5-3-CMS-Full-GC的触发条件" class="headerlink" title="5.3 CMS Full GC的触发条件"></a>5.3 CMS Full GC的触发条件</h3><p>主要指的是由于某种原因CMS GS退化为<code>单线程的Old区域压缩GC</code>(Serial Old GC),极其耗时,一旦发生,服务即不可用。</p>
+<ul>
+<li><code>System.gc()</code></li>
+<li>当永生代(Perm Gen)/老年代(Old Gen)/Metaspace(Java 8)使用比例100%时候</li>
+<li>老生代碎片过大无法分配空间给晋升的对象,引发<code>concurrent mode failure</code>错误</li>
+</ul>
+<h2 id="6-TODO工作"><a href="#6-TODO工作" class="headerlink" title="6. TODO工作"></a>6. TODO工作</h2><ul>
+<li>GC分析程序,接入监控。</li>
+<li>调研新的低延迟GC策略G1。</li>
+<li>如何用指标来度量GC的严重程度。</li>
+<li>提升服务吞吐量和降低延迟是否可以兼得？</li>
+</ul>
+<h2 id="7-Reference"><a href="#7-Reference" class="headerlink" title="7. Reference"></a>7. Reference</h2><ol>
+<li><a href="http://calvin1978.blogcn.com/articles/jvmoption-2.html" target="_blank" rel="external">JVM调优建议</a></li>
+<li><a href="https://community.hortonworks.com/articles/14170/namenode-garbage-collection-configuration-best-pra.html" target="_blank" rel="external">NameNode Garbage Collection Configuration: Best Practices and Rationale</a></li>
+<li><a href="http://tech.meituan.com/namenode.html" target="_blank" rel="external">Namenode内存分析-1</a></li>
+<li><a href="http://tech.meituan.com/namenode-memory-detail.html" target="_blank" rel="external">Namenode内存分析-2</a></li>
+<li><a href="http://dcm.didichuxing.com/cluster/index#/HDFSmonitor?_k=3i1bq1" target="_blank" rel="external">DCM HDFS文件数监控</a></li>
+<li><a href="http://dcm.didichuxing.com/cluster/index#/HDFSmonitor?_k=3i1bq1" target="_blank" rel="external">DCM HDFS文件和存储监控页面</a></li>
+<li><a href="">Java SE 6 HotSpot[tm] Virtual Machine Garbage Collection Tuning</a></li>
+<li><a href="https://blogs.oracle.com/poonam/entry/about_g1_garbage_collector_permanent" target="_blank" rel="external">JDK8: Metaspace</a></li>
+<li><a href="http://ifeve.com/useful-jvm-flags-part-8-gc-logging/" target="_blank" rel="external">JVM实用参数（八）GC日志</a></li>
+<li>Java性能优化权威指南</li>
+</ol>
+
+      
+    </div>
+
+  </div>
+
+  <div class="article-footer">
+    <div class="article-meta pull-left">
+
+    
+      
+
+    <span class="post-categories">
+      <i class="icon-categories"></i>
+        <a href="/categories/Hadoop/">Hadoop</a>, <a href="/categories/Hadoop/JVM/">JVM</a>
+    </span>
+    
+
+    
+    
+
+    <span class="post-tags">
+      <i class="icon-tags"></i>
+        <a href="/tags/Hadoop/">Hadoop</a><a href="/tags/Namenode/">Namenode</a><a href="/tags/JVM/">JVM</a>
+    </span>
+    
+
+    </div>
+
+    
+  </div>
+</article>
+
+
+
+  <article>
+
+  
+    
+    <h3 class="article-title"><a href="/2016/11/18/Hive-Metastore-Server生产化实践/"><span>Hive Metastore Server生产化实践</span></a></h3>
+    
+  
+
+  <div class="article-top-meta">
+    <span class="posted-on">
+      <a href="/2016/11/18/Hive-Metastore-Server生产化实践/" rel="bookmark">
+        <time class="entry-date published" datetime="2016-11-17T16:09:14.000Z">
+          2016-11-18
+        </time>
+      </a>
+    </span>
+  </div>
+
+
+  
+
+  <div class="article-content">
+    <div class="entry">
+      
+        <p>Hive Metastore保存了公司级别的核心元数据信息,所以其稳定性和高可用需求强烈。</p>
+<p>如果Hive/Spark/客户端都使用<code>直连MySQL访问</code>方式,那么有诸多缺点:</p>
+<ul>
+<li>Metastore稳定性无法保证。</li>
+<li>无法实现Hive审计日志。</li>
+<li>无法实现Hive集中权限控制。</li>
+</ul>
+<p>所以对于公司生产环境,强烈建议将Hive Metastore服务化,通过多台的<code>Hive Metastore Server</code>(以下简称MServer)来实现Metastore的高可用服务。</p>
+<p>以下内容包含MServer性能测试、MServer内存调优、MServer参数调优和MServer运维与监控等内容。</p>
+<h1 id="1-MServer测试"><a href="#1-MServer测试" class="headerlink" title="1 MServer测试"></a>1 MServer测试</h1><h2 id="1-1-测试环境"><a href="#1-1-测试环境" class="headerlink" title="1.1 测试环境"></a>1.1 测试环境</h2><p>硬件配置: 24 CPU Core/64G memory/10GB bandwidth Network</p>
+<h3 id="1-1-1-MServer-JVM启动参数"><a href="#1-1-1-MServer-JVM启动参数" class="headerlink" title="1.1.1 MServer JVM启动参数:"></a>1.1.1 MServer JVM启动参数:</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">-XX:+PrintCommandLineFlags </div><div class="line">-Xms12g -Xmx12g -XX:MetaspaceSize=128m </div><div class="line">-XX:+UseParNewGC -XX:+UseConcMarkSweepGC -XX:CMSInitiatingOccupancyFraction=75 -XX:+UseCMSInitiatingOccupancyOnly </div><div class="line">-verbose:gc -XX:+PrintGCDetails -XX:+PrintTenuringDistribution -XX:+PrintGCApplicationStoppedTime -XX:+PrintPromotionFailure -XX:+PrintGCDateStamps </div><div class="line">-XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=2 -XX:GCLogFileSize=512M -Xloggc:/dev/shm/gc-metastore.log</div></pre></td></tr></table></figure>
+<h3 id="1-1-2-MServer关键参数默认值"><a href="#1-1-2-MServer关键参数默认值" class="headerlink" title="1.1.2 MServer关键参数默认值"></a>1.1.2 MServer关键参数默认值</h3><ul>
+<li>最大数据库连接池连接数200</li>
+<li>处理线程数量最小200,最大2000</li>
+</ul>
+<h2 id="1-2-测试负载"><a href="#1-2-测试负载" class="headerlink" title="1.2 测试负载"></a>1.2 测试负载</h2><p>模拟多个客户端,对MServer线性不同的进行请求操作。</p>
+<p>请求操作有以下三种:</p>
+<ul>
+<li><code>show tables</code>: 查询一个库中的所有表操作,数据量少。</li>
+<li><code>show partitions by filter</code>: 按照筛选条件查询一个表下的分区信息,在select表时候使用,具体逻辑由多条SQL组成,回发数据量较多。</li>
+<li><code>create table &amp; drop table</code>: 建表和删表操作,涉及到数据库读写操作,HDFS路径建立。</li>
+<li><code>getconf</code>: 读取MServer配置,不与数据库进行交互,用来测试Thrift Server的最大处理能力。 </li>
+<li>以上三种操作的混合,按照50%,40%,10%的比例进行混合。</li>
+</ul>
+<h2 id="1-3-测试指标"><a href="#1-3-测试指标" class="headerlink" title="1.3 测试指标"></a>1.3 测试指标</h2><ol>
+<li><code>请求平均响应时间</code>: 客户端请求的平均响应时间。</li>
+<li><code>QPS</code>: 测试MServer的最大并发处理能力。</li>
+</ol>
+<h2 id="1-4-基本能力测试"><a href="#1-4-基本能力测试" class="headerlink" title="1.4 基本能力测试"></a>1.4 基本能力测试</h2><p>目标是测试MServer最大处理能力,和在不同配置下的性能表现。</p>
+<p>测试变动因素的有Server最大数据库连接数,测试操作,并发请求量。</p>
+<h3 id="1-4-1-不同并发请求量"><a href="#1-4-1-不同并发请求量" class="headerlink" title="1.4.1 不同并发请求量"></a>1.4.1 不同并发请求量</h3><p><img src="/images/QPS-200-showtables.png" alt="QPS-200-showtables"></p>
+<p>可以看大MServer在25个客户端并发下达到最大QPS达到<strong>8154</strong>,在100个客户端下平均请求响应时间13.17ms,之后上升较快。</p>
+<blockquote>
+<p>注意: 这里的客户端不是普通的一个Hive客户端,因为其不间断的在对MServer进行请求。</p>
+</blockquote>
+<h3 id="1-4-2-不同MServer数据库最大连接数条件下的测试"><a href="#1-4-2-不同MServer数据库最大连接数条件下的测试" class="headerlink" title="1.4.2 不同MServer数据库最大连接数条件下的测试"></a>1.4.2 不同MServer数据库最大连接数条件下的测试</h3><ul>
+<li>最大数据库连接200</li>
+</ul>
+<p>如前图结果所示。</p>
+<ul>
+<li>最大数据库连接数400</li>
+</ul>
+<p><img src="/images/QPS-400-showtables.png" alt="QPS-400-showtables"></p>
+<p>可以看大MServer最大QPS达到<strong>8395</strong>,在100个客户端下平均请求响应时间为12.48ms,之后上升较快。</p>
+<ul>
+<li>最大数据库连接100</li>
+</ul>
+<p>最大QPS在于7200左右。</p>
+<blockquote>
+<p>与最大连接数200相比,增加到400对于QPS和平均响应时间的提升效果不明显,<br>所以分析响应瓶颈在于MServer操作的逻辑;或在于数据库的处理能力,虽然连接数增多,但是处理能力却不能得到提升。</p>
+</blockquote>
+<h3 id="1-4-3-不同请求操作类型条件下的测试"><a href="#1-4-3-不同请求操作类型条件下的测试" class="headerlink" title="1.4.3 不同请求操作类型条件下的测试"></a>1.4.3 不同请求操作类型条件下的测试</h3><ul>
+<li><code>show tables</code></li>
+</ul>
+<p>测试结果如前所述,最大QPS达到8395。</p>
+<ul>
+<li><code>getConf</code></li>
+</ul>
+<p><img src="/images/QPS-2000-getconf.png" alt="QPS-2000-getconf"></p>
+<p>可以看到最大QPS达到31005,相比访问数据库的show tables操作的8395QPS,处理能力很大提升。</p>
+<p>另外启动两个MServer实例,分别进行压力测试,两个MServer的QPS平均每个在4000左右,</p>
+<p>通过上述线程认为<strong>数据库处理能力</strong>是制约MServer处理能力的主要因素,但是<strong>数据库连接数</strong>对增加数据库处理能力作用有限。</p>
+<ul>
+<li><code>create table &amp; Drop table</code></li>
+</ul>
+<p><img src="/images/QPS-200-createtable.png" alt="QPS-200-createtable"></p>
+<p>因为涉及到数据库写操作,和HDFS路径建立操作,平均QPS为157。</p>
+<ul>
+<li><code>show partitions by filter</code></li>
+</ul>
+<p>查询数据量较多时(255个partition),在测试时候会造成MySQL的System CPU使用率达到30%+。改变参数,降低获取的数据量后,System CPU使用会恢复正常。<br>这个现象还需要继续测试查找原因。</p>
+<ul>
+<li>混合操作</li>
+</ul>
+<p>最大QPS为416。</p>
+<h2 id="1-5-稳定性测试"><a href="#1-5-稳定性测试" class="headerlink" title="1.5 稳定性测试"></a>1.5 稳定性测试</h2><p>连续压测20个小时,QPS能够保持<strong>稳定</strong>,CPU400%~600%左右,GC无异常,内存使用最大使用2g。</p>
+<h2 id="1-6-测试总结"><a href="#1-6-测试总结" class="headerlink" title="1.6 测试总结"></a>1.6 测试总结</h2><ol>
+<li>数据库连接数对于性能的提升<strong>不明显</strong>,在MServer的处理能力提升不明显。MServer部署不需要特别多的数据库连接。</li>
+<li><strong>数据库处理能力</strong>是制约MServer处理能力的主要因素,但是<strong>数据库连接数</strong>对增加数据库处理能力作用有限</li>
+<li>MServer具有一定的稳定性。</li>
+<li>MServer在压测时候<code>CPU</code>和<code>Memory</code>使用率都很低,<code>Network</code>使用也不多,不是资源高消耗应用,TCP连接数最大可以达到worker数量。</li>
+</ol>
+<h1 id="2-MServer部署"><a href="#2-MServer部署" class="headerlink" title="2 MServer部署"></a>2 MServer部署</h1><h2 id="2-1-MServer启动参数设置"><a href="#2-1-MServer启动参数设置" class="headerlink" title="2.1 MServer启动参数设置"></a>2.1 MServer启动参数设置</h2><p>需要在<code>${HIVE_HOME}\conf\hive-env.sh</code>中增加:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div></pre></td><td class="code"><pre><div class="line"></div><div class="line"># 将gclog设置到内存文件中 -Xloggc:/dev/shm/gc-metastore.log</div><div class="line"># 如果内存吃紧,可以设置Thrift Server的最大worker数量,并且设置-Xss128k,因为MServer每个线程的处理工作并不复杂,迭代并不深。</div><div class="line">if [ &quot;$SERVICE&quot; = &quot;metastore&quot; ]; then</div><div class="line">  if [ -z &quot;$DEBUG&quot; ]; then</div><div class="line">    export HIVE_METASTORE_HADOOP_OPTS=&quot; -XX:+PrintCommandLineFlags -Xms12g -Xmx12g -XX:MetaspaceSize=128m -XX:+UseParNewGC -XX:+UseConcMarkSweepGC -XX:CMSInitiatingOccupancyFraction=75 -XX:+UseCMSInitiatingOccupancyOnly -verbose:gc -XX:+PrintGCDetails -XX:+PrintTenuringDistribution -XX:+PrintGCApplicationStoppedTime -XX:+PrintPromotionFailure -XX:+PrintGCDateStamps -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=2 -XX:GCLogFileSize=512M -Xloggc:/dev/shm/gc-metastore.log&quot;</div><div class="line">  else</div><div class="line">    export HIVE_METASTORE_HADOOP_OPTS=&quot; -XX:+PrintCommandLineFlags -Xms12g -Xmx12g -XX:MetaspaceSize=128m -XX:+UseParNewGC -XX:+UseConcMarkSweepGC -XX:CMSInitiatingOccupancyFraction=75 -XX:+UseCMSInitiatingOccupancyOnly -verbose:gc -XX:+PrintGCDetails -XX:+PrintTenuringDistribution -XX:+PrintGCApplicationStoppedTime -XX:+PrintPromotionFailure -XX:+PrintGCDateStamps -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=2 -XX:GCLogFileSize=512M -Xloggc:/dev/shm/gc-metastore.log&quot;</div><div class="line">  fi</div><div class="line">  # 修改Metastore Server内存必须设置,否则会被hadoop里设置的512MB覆盖</div><div class="line">  # Must set -Xmx because memory is hardcoding to 512MB in $&#123;HADOOP_HOME&#125;/etc/hadoop/hadoop-env.sh</div><div class="line">  export HADOOP_CLIENT_OPTS=&quot; -Xmx12g -Xss512k $HADOOP_CLIENT_OPTS&quot;</div><div class="line">fi</div></pre></td></tr></table></figure>
+<p>这里GC使用常见的CMS+ParNew GC, 并且滚动打印GC log。</p>
+<h2 id="2-2-MServer的关键性能参数"><a href="#2-2-MServer的关键性能参数" class="headerlink" title="2.2 MServer的关键性能参数"></a>2.2 MServer的关键性能参数</h2><ul>
+<li><p><code>hive.metastore.server.max.threads</code><br>Thrift Server工作线程的最大数量。默认是100000,但是一般设置为2000~4000。<br>如果并发瞬时请求大于这个配置,客户端会直接报连接错误,所以应该满足<code>MServer instance * hive.metastore.server.max.threads &gt; Max of Hive client at same time</code></p>
+</li>
+<li><p><code>hive.metastore.server.min.threads</code><br>Thrift Server工作线程的最小数量,默认为20。MServer使用了Thrift Server中的<code>ThreadPoolServer</code>方式作为Server工作调度器。</p>
+</li>
+<li><p><code>datanucleus.connectionPool.maxPoolSize</code><br>设置MServer的数据库连接池最大连接数。</p>
+</li>
+</ul>
+<p>MServer的一个很大作用也在于复用本来独立于各个Client的数据库连接, 大大降低了后端数据库的连接数。<br>每个MySQL Server实例的支持最大连接大概是4000,如果每个Hive客户端都去连接的时候,很容易打满连接,造成数据库<code>too many connections</code>错误</p>
+<p>跟数据库的处理能力有关系,在测试中发现这个配置从200提高到400,MServer的处理能力并没有更多提升。</p>
+<ul>
+<li><code>hive.hmshandler.retry.attempts</code></li>
+<li><code>hive.hmshandler.retry.interval</code><br>以上两个参数MServer在连接元数据库连接失败时候的重试次数和重试间隔。默认是10次,2s。当元数据库不稳定时候可以增加。</li>
+</ul>
+<p>测试和观察MServer的log,发现在MServer在遇到HDFS读写异常(没有权限/Trash满等原因造成)时候,并不会重试,直接给客户端返回错误信息。li<br>当遇到<code>JDOException</code>和<code>NucleusException</code>等数据库连接错误时候,会进行重试机制。</p>
+<ul>
+<li><code>hive.metastore.server.max.message.size</code><br>MServer与客户端传输消息的最大值。默认是200MB,一般够用,如果遇到奇葩错误,可以调大。</li>
+</ul>
+<h2 id="2-3-客户端相关参数"><a href="#2-3-客户端相关参数" class="headerlink" title="2.3 客户端相关参数"></a>2.3 客户端相关参数</h2><ul>
+<li><code>hive.metastore.local</code></li>
+</ul>
+<p>使用远程MServer设置为false。</p>
+<ul>
+<li><code>hive.metastore.uris</code></li>
+</ul>
+<p>设置为MServer地址,多个MServer实例使用逗号分隔,注意地址一定要符合URI的RFC规范,是<code>thrift://hostname:port</code>这样的形式。</p>
+<ul>
+<li><p><code>hiv.metastore.connect.retries</code><br>客户端在连接MServer失败时候的重试次数,默认为3。</p>
+</li>
+<li><p><code>hive.metastore.client.connect.retry.delay</code></p>
+</li>
+</ul>
+<p>客户端在重试连接MServer时候的重试间隔,默认为1s。建议设置为5s~25s,我们集群设置为6s。</p>
+<p>以上两个参数是Hive客户端在启动尝试连接MServer时候的相关参数。<br>另外一个比较重要的参数是查询过程中MServer出错,自动尝试到另一个MServer上去查询的参数:</p>
+<ul>
+<li><code>hive.metastore.failure.retries</code></li>
+</ul>
+<p>客户端在连接MServer进行查询时候出错的重试次数,默认为1。</p>
+<p>上述三个是客户端连接MServer的<code>高可用</code>相关参数。</p>
+<p>查询失败的原因可以总结为: </p>
+<ol>
+<li><p>MServer实例重启,这个在MServer配置变更和服务升级时候会发生。</p>
+</li>
+<li><p>MServer实例异常。主要为无响应,或者依赖的元数据库响应异常。</p>
+<blockquote>
+<p>当依赖的元数据库异常时候,MServer如上面所述会采取重试机制,而此时客户端并不会重试,会hang住等MServer进行重试返回结果。</p>
+</blockquote>
+</li>
+<li><p>客户端请求异常。<br>目前经过分析MServer的运行log,只发现一个case,<br>是在删除内部表操作时候,删除<code>用户目录外的HDFS数据</code>到<code>用户目录下Trash</code>如果权限不足(用户根本没有申请到用户目录权限),<br>或者<code>用户目录配额满</code>的时候会引发MServer删除表异常。通过构造这种场景测试测试和代码验证,发现客户端并不会重试。</p>
+</li>
+</ol>
+<p>上述三种情况,只有当第一种原因发生(客户端异常为<code>传输异常(TApplication|TProtocol|TTransport等)</code>)时,客户端会采取重连措施。</p>
+<p>综上所述,为了防止第一种情况的发生,增加连接MServer时候的高可用特性,建议增加重试次数。</p>
+<p>参考<a href="https://www.ibm.com/support/knowledgecenter/SSPT3X_4.1.0/com.ibm.swg.im.infosphere.biginsights.admin.doc/doc/admin_HA_Hivem.html" target="_blank" rel="external">IBM Enabling Hive metastore high availability</a><br>中的配置,并结合集群情况,将重试次数设置为<code>25</code>,重试间隔设置为<code>6s</code>,这样将会允许客户端有<code>150s的重连缓冲时间</code>。<br>MServer作为一个高可用服务,如果150s内不能恢复服务,那么客户端直接报错。</p>
+<ul>
+<li><code>hive.metastore.client.socket.lifetime</code><br>客户端在进行某一个查询,超过多长时间就会进行选择另一个MServer重试。默认为0s,配置文件一般设置为600s。</li>
+</ul>
+<h2 id="2-4-Hive-auditlog配置参数"><a href="#2-4-Hive-auditlog配置参数" class="headerlink" title="2.4 Hive auditlog配置参数"></a>2.4 Hive auditlog配置参数</h2><p>通过metastore回收元数据访问权限,顺便可以打开Hive的元数据audit log功能,进一步可以做一些Hive表冷热分析,HDFS数据访问频率分析等额外工作。<br>打开Audit log并输出到单独文件,需要修改的是<code>${HIVE_HOME}\conf\hive-log4j.properties</code>文件:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line">#hive audit logging</div><div class="line"></div><div class="line">log4j.logger.org.apache.hadoop.hive.metastore.HiveMetaStore.audit=INFO,audit</div><div class="line">log4j.additivity.org.apache.hadoop.hive.metastore.HiveMetaStore.audit=false</div><div class="line">log4j.appender.audit=org.apache.log4j.DailyRollingFileAppender</div><div class="line">log4j.appender.audit.File=$&#123;hive.log.dir&#125;/audit.log</div><div class="line">log4j.appender.audit.Append=false </div><div class="line">log4j.appender.audit.layout=org.apache.log4j.PatternLayout</div><div class="line">log4j.appender.audit.layout.ConversionPattern=[%d&#123;yy-MM-dd HH:mm:ss:SSS&#125;][%C-%M] -%m%n</div><div class="line">log4j.appender.audit.BufferedIO=true</div><div class="line">log4j.appender.audit.BufferSize=8192</div><div class="line">log4j.appender.audit.DatePattern=.yyyy-MM-dd-HH</div></pre></td></tr></table></figure>
+<h1 id="3-Metastore运维与监控"><a href="#3-Metastore运维与监控" class="headerlink" title="3. Metastore运维与监控"></a>3. Metastore运维与监控</h1><h2 id="3-1-外部监控系统"><a href="#3-1-外部监控系统" class="headerlink" title="3.1 外部监控系统"></a>3.1 外部监控系统</h2><p>可以使用<code>Ganglia</code>和<code>Zabbix</code>等监控系统</p>
+<h2 id="3-2-监控指标"><a href="#3-2-监控指标" class="headerlink" title="3.2 监控指标"></a>3.2 监控指标</h2><h3 id="3-2-1-节点监控指标"><a href="#3-2-1-节点监控指标" class="headerlink" title="3.2.1 节点监控指标"></a>3.2.1 节点监控指标</h3><p>包含一些机器常用指标,包含CPU/Memory/DiskIO/NetworkIO等。测试过程中发现MServer的负载很低,需要关注的主要是<code>NetworkIO</code>和<code>TCP connection</code>两个指标。</p>
+<h3 id="3-2-2-进程监控指标"><a href="#3-2-2-进程监控指标" class="headerlink" title="3.2.2 进程监控指标"></a>3.2.2 进程监控指标</h3><p>监控进程是否存在。</p>
+<h3 id="3-2-3-MServer负载监控指标"><a href="#3-2-3-MServer负载监控指标" class="headerlink" title="3.2.3 MServer负载监控指标"></a>3.2.3 MServer负载监控指标</h3><p>设每个MServer的工作线程最大为MaxWorker，每个客户端与Server连接之后会使用一个TCP连接，<br>可以用<code>Server的TCP连接</code>来作为表征<code>Server负载</code>的指标。<br>可以设置每台机器的Server TCP连接数大于门限（例如90%）则进行告警。然后触发扩容等措施。</p>
+<h3 id="3-2-4-应用级别监控指标"><a href="#3-2-4-应用级别监控指标" class="headerlink" title="3.2.4 应用级别监控指标"></a>3.2.4 应用级别监控指标</h3><p>引入社区的Hive Metrics机制。</p>
+<h1 id="4-待补充工作"><a href="#4-待补充工作" class="headerlink" title="4 待补充工作"></a>4 待补充工作</h1><ol>
+<li>MServer Metrics收集,监控和告警。</li>
+<li>MySQL System CPU使用率在压力测试请求频繁条件下超高问题。</li>
+<li>通过Metrics收集真实的请求量分布,便于在运维时候提前增加Server数量,应对请求高峰。</li>
+<li>MServer Cache机制。</li>
+</ol>
+<h1 id="5-Reference"><a href="#5-Reference" class="headerlink" title="5 Reference"></a>5 Reference</h1><ul>
+<li><a href="https://www.ibm.com/support/knowledgecenter/SSPT3X_4.1.0/com.ibm.swg.im.infosphere.biginsights.admin.doc/doc/admin_HA_Hivem.html" target="_blank" rel="external">IBM Enabling Hive metastore high availability</a></li>
+<li></li>
+</ul>
+
+      
+    </div>
+
+  </div>
+
+  <div class="article-footer">
+    <div class="article-meta pull-left">
+
+    
+      
+
+    <span class="post-categories">
+      <i class="icon-categories"></i>
+        <a href="/categories/Hive/">Hive</a>, <a href="/categories/Hive/Hadoop/">Hadoop</a>
+    </span>
+    
+
+    
+    
+
+    <span class="post-tags">
+      <i class="icon-tags"></i>
+        <a href="/tags/Hive/">Hive</a><a href="/tags/Benchmarking/">Benchmarking</a>
+    </span>
+    
+
+    </div>
+
+    
+  </div>
+</article>
+
+
+
+  <article>
+
+  
+    
+    <h3 class="article-title"><a href="/2016/11/10/Spark诊断调优系统/"><span>Spark诊断调优系统</span></a></h3>
+    
+  
+
+  <div class="article-top-meta">
+    <span class="posted-on">
+      <a href="/2016/11/10/Spark诊断调优系统/" rel="bookmark">
+        <time class="entry-date published" datetime="2016-11-10T10:00:11.000Z">
+          2016-11-10
+        </time>
+      </a>
+    </span>
+  </div>
+
+
+  
+
+  <div class="article-content">
+    <div class="entry">
+      
+        <h2 id="动机（Motivation）"><a href="#动机（Motivation）" class="headerlink" title="动机（Motivation）"></a>动机（Motivation）</h2><p>对于Spark用户来说，只关心自己的业务逻辑，数据由输入到输出的pipeline，并不关注Spark应用任务执行情况和应用资源占用情况等信息。所以在提交和执行应用过程中，经常会遇到一些问题并向管理员询问，例如：</p>
+<blockquote>
+<p>Q:  我的应用为什么运行时间超长？<br>A:  与应用相关的可能的原因有，业务逻辑设计不合理、算法需要优化、Executor GC时间太长、输入数据/计算倾斜，计算节点/网络存在问题，等等。。<br>Q:  我的应用为什么报错?<br>A:  需要保存应用出错信息，并且根据出错信息来进行错误排查，并反馈给用户。其中出错信息可能涉及到程序本身的逻辑和配置问题，也可能由<code>Spark的bug</code>、<code>操作系统</code>和<code>硬件</code>原因等触发。<br>Q:  为什么我的应用排队严重？<br>A:  与应用相关的可能原因有，应用资源占用严重不合理、内存利用率太低、Executor大量空闲、每个Executor slot任务活跃数量少等。</p>
+</blockquote>
+<p>而Admin也会关心每个应用的执行效率，资源占用情况，应用出错信息（可能涉及到框架和集群问题，Case详见Case1）。这都需要对应用进行<code>诊断</code>，并给出诊断报告，作为应用排查问题和优化的依据。进一步，并且根据应用的诊断情况生成报表，按照应用出错原因、资源使用维度进行汇总形成宏观数据，以此为依据进行框架优化和资源优化。</p>
+<p>综上，我们需要这样一个系统：</p>
+<ol>
+<li>帮助用户和管理员，以应用为粒度，主动诊断每一个应用，并发现问题。</li>
+<li>根据具体问题，给给用户建议，帮助用户自己进行程序错误修复，和资源和执行效率优化。</li>
+<li>给每个应用进行标记，以便Admin定期汇总，产出Spark应用执行成功率、失败原因分类、资源占用率等报表。</li>
+</ol>
+<p>这个系统包含两部分：</p>
+<ol>
+<li>Spark诊断调优模型：其中包含应用代码和配置、应用运行时和应用资源管理三个层次。</li>
+<li>系统实现：其中包含实现架构，指标收集实现等。</li>
+</ol>
+<h2 id="模型（Model）"><a href="#模型（Model）" class="headerlink" title="模型（Model）"></a>模型（Model）</h2><p>按照Spark应用从1）用户代码实现和配置设定，2）到向集群提交应用，3）应用向资源管理系统申请资源，4）开始运行这个流程，我们将诊断调优模型分为以下三个层次，如图1所示。</p>
+<p><img src="/images/Spark诊断调优模型层次划分.png" alt="Spark诊断调优分层模型"></p>
+<p>Model包含以下几个层次：</p>
+<ol>
+<li>静态配置</li>
+<li>应用运行时（三个部分）</li>
+<li>资源使用（一个部分）</li>
+<li>应用语义</li>
+</ol>
+<p>对于每一层次内的优化项，包含<code>指标</code>、<code>规则</code>和<code>优化建议</code>三个内容。</p>
+<h3 id="静态配置"><a href="#静态配置" class="headerlink" title="静态配置"></a>静态配置</h3><p>分为两类参数：一类是用户经常变动的重要参数；一类是用户不经常变动，由管理员经过优化的默认参数。<br>给出一些重要的参数，根据优化规则，提示用户是否在合理范围内，其次在报错的时候根据设置值来查找原因。</p>
+<ul>
+<li>spark.yarn.executor.overhead/overheadFraction：<br>规则，默认2g/0.2，不建议超过4g，除了特殊原因</li>
+<li>executor.cores：<br>规则：默认6，不建议超过8个，因为存在HDFS client性能问题，HDFS I/O吞吐量有瓶颈；不建议小于两个，因为slot太小的Executor不能利用到task多线程的优势。</li>
+<li>executor.memory：<br>规则：默认10g，不建议大于14g，加上overhead（2g）会提交失败；</li>
+<li>minExecutorNum：默认1<br>规则：不建议大于100，除了特殊原因</li>
+<li>maxExecutorNum：默认100<br>规则：不建议大于500，除了特殊原因</li>
+<li>kyro的buffer：<br>规则：暂无，展示以为了在错误时候判断原因</li>
+<li>akkaFrameSize：<br>规则：暂无，展示以为了在错误时候判断原因</li>
+</ul>
+<h3 id="应用运行时"><a href="#应用运行时" class="headerlink" title="应用运行时"></a>应用运行时</h3><p>主要包含应用运行时的Executor和Task运行时间，各个操作时间占比相关指标，以及Job/Stage相关指标。</p>
+<h4 id="数据倾斜"><a href="#数据倾斜" class="headerlink" title="数据倾斜"></a>数据倾斜</h4><p>目标：给出应用的数据倾斜程度，提醒用户存在数据倾斜，给出优化建议。<br>思路：抓取任务的执行时间分布、处理数据量分布等指标，根据规则判断是否数据倾斜的严重程序。<br>1）Task处理数据量/执行时间，平均，最大，最小，概率分布（25%、50%、75%）。<br>2）是否存在拖后腿任务。查看是否某些Task执行时间相对于其他差距较大。<br>3）Task Locality分布。<br>优化建议：</p>
+<ol>
+<li>设置推测执行，spark.speculation。</li>
+<li>设置合理的资源并行度，spark.executor.cores</li>
+<li>设置合理的任务并行度，spark.default.parallelism<br>任务并行度是非常重要的参数，未来的优化方向应该是不需要用户自己进行设定，可以根据数据量等运行时数据进行自动的设定（SparkSQL已经实现一个初步版本，可以继续优化）</li>
+<li>业务算法改造，分布key改造。</li>
+</ol>
+<h4 id="运行时应用错误分析"><a href="#运行时应用错误分析" class="headerlink" title="运行时应用错误分析"></a>运行时应用错误分析</h4><p>目标：给予用户执行失败修改建议，让管理员可以检测到应用错误分类等信息。<br>思路：抓取任务失败的信息，进行归类，汇总，分析。展示信息，并且根据错误信息分类给予用户修改建议。<br>TaskFailed/StageFailed/JobFailed<br>调优建议：整理wiki，根据具体的错误原因给出修改建议。<br>错误总结和分类：</p>
+<ol>
+<li>Executor lost错误。可能原因有内存超出，环境配置问题等。</li>
+<li>。。。</li>
+</ol>
+<h4 id="Shuffle（模型较复杂，需要继续完善）"><a href="#Shuffle（模型较复杂，需要继续完善）" class="headerlink" title="Shuffle（模型较复杂，需要继续完善）"></a>Shuffle（模型较复杂，需要继续完善）</h4><p>目标：构建出Shuffle操作的耗时模型，给予用户shuffle优化建议。<br>思路：包含shuffle网络传输、merge排序、和spill等时间等指标，根据shuffle时间占比，来评判是否需要优化shuffle过程。<br>指标：</p>
+<ol>
+<li>shuffle 网络和磁盘IO时间</li>
+<li>shuffle 序列化时间</li>
+<li>shuffle 读取和spill写数据量。</li>
+<li><p>shuffle 内存消耗量。<br>调优建议：给出优化shuffle的哪些参数，和其他优化方式：</p>
+<ul>
+<li>spark.shuffle.file.buffer</li>
+<li>spark.reducer.maxSizeInFlight</li>
+<li>spark.shuffle.io.maxRetries</li>
+<li>spark.shuffle.io.retryWait</li>
+<li>spark.shuffle.memoryFraction</li>
+<li>spark.shuffle.manager</li>
+<li>spark.shuffle.sort.bypassMergeThreshold</li>
+<li>spark.shuffle.consolidateFiles</li>
+</ul>
+</li>
+</ol>
+<h3 id="应用资源"><a href="#应用资源" class="headerlink" title="应用资源"></a>应用资源</h3><p>目标：帮助用户自己来优化应用对于集群的CPU和内存占用，帮助管理员来掌握Spark整体的资源实际占用率情况。<br>思路：收集下列指标，按照对应的规则给出给出严重级别。<br>指标：</p>
+<ol>
+<li>Executor内存实际使用率。</li>
+<li>Executor Task利用率。</li>
+<li>Spark App集群资源时间占用CPU Core(Memory)*time。</li>
+<li>Driver 内存gc情况。</li>
+<li>Executor内存平均gc情况。<br>优化建议：<br>1）设置最小最大executor数量。<br>2）设置合理的Executot内存，spark.executor.memory。<br>3）设置合理的Executor Task并行度，spark.executor.cores。<br>4）通过聚合多个应用的资源时间占用，可以分析出Spark对集群逻辑资源占用的占比，为进一步管理员进一步优化打下基础。</li>
+</ol>
+<h2 id="实现（Implementation）"><a href="#实现（Implementation）" class="headerlink" title="实现（Implementation）"></a>实现（Implementation）</h2><p>系统架构</p>
+<p>-&gt; spark application running<br>-&gt; log event(e.g, taskStart, taskFailed, taskCompleted, executorAdded, executorRemoved…)<br>-&gt; replay log and rebuild optimizated model<br>-&gt; apply config rules on the model<br>-&gt; make tag on this application, so user could search for this application and optimize according to the analysis result.</p>
+<p>基于Dr-elephant,Spark诊断调优系统的工作流程：<br><img src="/images/调优诊断系统目前的处理架构.png" alt="目前的Dr. elephent Spark Application 调优流程"></p>
+<h3 id="指标获取实现"><a href="#指标获取实现" class="headerlink" title="指标获取实现"></a>指标获取实现</h3><ol>
+<li><p>应用Executor物理内存使用率。<br> 这个指标是时间相关指标,各个Executor通过heartbeat向Driver传输并汇总。</p>
+</li>
+<li><p>应用Executor CPU slot使用率。<br> 表示Executor实际的CPU物理使用率。同上,各个Executor通过heartbeat向Driver传输并汇总。</p>
+</li>
+<li><p>应用逻辑物理和内存资源占用。<br> 通过YARN API获取到。表示应用占集群资源的逻辑资源量。使用Memory(CPU Cores) * seconds来表示。</p>
+</li>
+<li><p>应用HDFS/Shuffle数据读写量。<br> 通过YARN API获取到,表示应用的数据读写量,表示应用类型。</p>
+<ul>
+<li>MapReduce:通过YARN API来获取。</li>
+<li>Spark:通过聚集每个Task的数据读写量来实现。</li>
+</ul>
+</li>
+<li><p>Hive SQL/Spark SQL语句保存。</p>
+</li>
+</ol>
+<h2 id="一些Case总结"><a href="#一些Case总结" class="headerlink" title="一些Case总结"></a>一些Case总结</h2><ul>
+<li>某个应用中，第一个Stage的某两个Task执行特别慢。<br>admin发现应用是卡在读取数据阶段。总是由某几个数据块，读取时间超长，本应该几秒读取完，实际花费几十分钟。结合代码和log发现，原因不在于Spark应用本身，而在于<strong>HDFS datanode响应速度极慢</strong>，所以需要进一步去检查<strong>为何datanode响应时间极慢</strong>。这样的应用到底有多少，需要通过系统来记录，并且反馈给admin。</li>
+<li>应用的Job failed问题。</li>
+<li>应用的资源占用率问题。</li>
+</ul>
+
+      
+    </div>
+
+  </div>
+
+  <div class="article-footer">
+    <div class="article-meta pull-left">
+
+    
+      
+
+    <span class="post-categories">
+      <i class="icon-categories"></i>
+        <a href="/categories/Spark/">Spark</a>, <a href="/categories/Spark/Troubleshooting/">Troubleshooting</a>
+    </span>
+    
+
+    
+    
+
+    <span class="post-tags">
+      <i class="icon-tags"></i>
+        <a href="/tags/Spark/">Spark</a><a href="/tags/Dr-elephant/">Dr-elephant</a>
+    </span>
+    
+
+    </div>
+
+    
+  </div>
+</article>
+
+
+
+  <article>
+
+  
+    
+    <h3 class="article-title"><a href="/2016/11/10/Git命令使用总结/"><span>Git命令使用总结</span></a></h3>
+    
+  
+
+  <div class="article-top-meta">
+    <span class="posted-on">
+      <a href="/2016/11/10/Git命令使用总结/" rel="bookmark">
+        <time class="entry-date published" datetime="2016-11-10T08:00:01.000Z">
+          2016-11-10
+        </time>
+      </a>
+    </span>
+  </div>
+
+
+  
+
+  <div class="article-content">
+    <div class="entry">
+      
+        <h2 id="git-commit"><a href="#git-commit" class="headerlink" title="git commit"></a>git commit</h2><ul>
+<li>修改上次提交的作者信息：<code>git commit --amend --author=&#39;Your Name &lt;you@example.com&gt;&#39;</code></li>
+<li>dad</li>
+</ul>
+<h2 id="git-stash"><a href="#git-stash" class="headerlink" title="git stash"></a>git stash</h2><ul>
+<li>暂时存储现有未提交的内容：<code>git stash</code></li>
+<li>如果需要恢复，首先查看stash列表：<code>git stash list</code></li>
+<li>恢复stash内容：<code>git stash apply</code></li>
+<li>删除stash内容：<code>git stash drop</code></li>
+<li>恢复且删除stash内容：<code>git stash pop</code></li>
+<li>如果有多个stash，恢复指定的stash内容：<code>git stash apply stash@{0}</code></li>
+</ul>
+<p>##git 分支</p>
+<ul>
+<li><p>删除远程分支：<code>git push [remote-server] :[branch-name]</code><br>例如删除origin中的dev分支：<code>git push origin :dev</code></p>
+</li>
+<li><p>删除本地分支：<code>git branch -d [branch-name]</code></p>
+</li>
+<li>如果没有合并分支，则不能直接删除，只能强制删除：<code>git branch -D [branch-name]</code></li>
+<li>将指定分支合并到当前分支<code>git merge [branch-name]</code></li>
+</ul>
+<h2 id="git-提交"><a href="#git-提交" class="headerlink" title="git 提交"></a>git 提交</h2><ul>
+<li><code>git add remote origin http://xxx.com/xx</code> </li>
+</ul>
+<h2 id="git-远程仓库"><a href="#git-远程仓库" class="headerlink" title="git 远程仓库"></a>git 远程仓库</h2><ul>
+<li>查看远程仓库：<code>git remote -v</code></li>
+<li>增加一个远程仓库：<code>git remote add &lt;shortname&gt; &lt;url&gt;</code><br>例如：<code>git remote add official https://github.com/apache/spark</code><br>增加shortname之后，就可以其来替代URL。<br>远程的分支可以使用<code>&lt;shortname&gt;/&lt;branchname&gt;</code>来访问到，例如根据Spark官方的2.0分支生成本地的分支：<code>git checkout -b spark-2.0-local official/branch-2.0</code><blockquote>
+<p>仓库默认会有一个origin远程仓库，和一个master分支。</p>
+</blockquote>
+</li>
+<li>查看远程仓库的具体信息：<code>git remote show &lt;shortname&gt;</code><br>可以查看一些远程仓库的具体信息</li>
+<li>重命名或删除远程分支：<code>git remote rename(rm) &lt;shortname&gt; [another-name]</code></li>
+<li>从远程仓库拉取：<code>git fetch &lt;shortname&gt;</code><br>例如想拉取官方最新的一些改动：<code>git fetch official</code></li>
+</ul>
+<h2 id="git-log"><a href="#git-log" class="headerlink" title="git log"></a>git log</h2><ul>
+<li>图形化查看git log：<code>git log --all --decorate --graph</code><br>远程仓库有可能会有多个，例如官方的Spark版本和公司/学校的Spark版本</li>
+</ul>
+<p>##git rebase</p>
+<ul>
+<li><code>git pull</code> = <code>git fetch &amp;&amp; git merge FETCH_HEAD</code></li>
+<li><code>git pull --rebase</code> = <code>git fetch &amp;&amp; git rebase FETCH_HEAD</code></li>
+</ul>
+<h2 id="git-rebase-VS-git-merge"><a href="#git-rebase-VS-git-merge" class="headerlink" title="git rebase VS git merge"></a>git rebase VS git merge</h2><h2 id="git-config"><a href="#git-config" class="headerlink" title="git config"></a>git config</h2><ul>
+<li>修改自己的用户名和邮箱信息：<br><code>git config --global user.name &quot;Your Name&quot;</code><br><code>git config --global user.email you@example.com</code></li>
+</ul>
+
+      
+    </div>
+
+  </div>
+
+  <div class="article-footer">
+    <div class="article-meta pull-left">
+
+    
+      
+
+    <span class="post-categories">
+      <i class="icon-categories"></i>
+        <a href="/categories/Git/">Git</a>, <a href="/categories/Git/生产效率/">生产效率</a>
+    </span>
+    
+
+    
+    
+
+    <span class="post-tags">
+      <i class="icon-tags"></i>
+        <a href="/tags/Git/">Git</a><a href="/tags/Tools/">Tools</a>
+    </span>
+    
+
+    </div>
+
+    
+  </div>
+</article>
+
+
+
+  <article>
+
+  
+    
+    <h3 class="article-title"><a href="/2016/08/01/HDFS配额总结/"><span>HDFS配额总结</span></a></h3>
+    
+  
+
+  <div class="article-top-meta">
+    <span class="posted-on">
+      <a href="/2016/08/01/HDFS配额总结/" rel="bookmark">
+        <time class="entry-date published" datetime="2016-08-01T02:00:40.000Z">
+          2016-08-01
+        </time>
+      </a>
+    </span>
+  </div>
+
+
+  
+
+  <div class="article-content">
+    <div class="entry">
+      
+        <p>HDFS允许管理员给私人<strong>目录</strong>设置其下面文件夹和文件的总数量配额，或空间使用总量配额。所以HDFS配额的对象是<strong>目录</strong>，而非<em>用户</em>。如果需要实现用户级别的配额，则需要采用第三方系统进行逻辑管理并映射到文件夹配额。</p>
+<p>在往有配额的目录中写数据时，如果超过限额，会提示<code>DSQuotaExceededException</code>异常，所以<strong>提早提醒文件夹所属的用户</strong>非常有意义。</p>
+<h2 id="文件数配额（Name-Quota）"><a href="#文件数配额（Name-Quota）" class="headerlink" title="文件数配额（Name Quota）"></a>文件数配额（Name Quota）</h2><p>文件数配额指的是可以限制当前文件夹下，所有文件和文件夹的总数量（包含所有的文件夹和文件inode）.类似于linux系统中ulimit里的hard limit。</p>
+<h2 id="空间配额（Space-Quota）"><a href="#空间配额（Space-Quota）" class="headerlink" title="空间配额（Space Quota）"></a>空间配额（Space Quota）</h2><p>空间配额指的是可以限制当前文件夹下，所有文件（包含子文件夹中的数据文件，会递归的去统计）的总大小，设置值包含副本因素，即<code>N=fileSize * Replication</code>。</p>
+<blockquote>
+<p>文件数配合空间配额可以同时使用，并不冲突。同时测试发现空间配额会有384MB物理空间（128MB逻辑空间，默认数据块大小）的固定预留，就是说当空间配额还剩下384MB时候，写文件就会失败。</p>
+</blockquote>
+<p>设置空间配额：<code>dfsadmin -setSpaceQuota &lt;N&gt; &lt;directory&gt;...&lt;directory&gt;</code><br>给每个目录设置空间配额为<em>N</em>  Byte，<em>N</em>可以是5g或者2t。空间配额表示这个文件夹下所有文件的总大小，包含副本因素，即<code>N=fileSize * Replication</code>。</p>
+<p>清除空间配额：<code>dfsadmin -clrSpaceQuota &lt;directory&gt;...&lt;directory&gt;</code><br>清除各个目录的空间配额。实际上是把空间配额设置为0。</p>
+<blockquote>
+<p>设置配额必须由管理员来进行。</p>
+</blockquote>
+<h2 id="物理空间与逻辑空间"><a href="#物理空间与逻辑空间" class="headerlink" title="物理空间与逻辑空间"></a>物理空间与逻辑空间</h2><ul>
+<li>物理空间：文件实际占用HDFS的大小，<strong>包含副本因素</strong>，等于逻辑空间*副本数。</li>
+<li>逻辑空间：文件本身大小，<code>du</code>命令显示的结果。</li>
+</ul>
+<p><code>hdfs fsck</code>和<code>hadoop fs -count</code> 出来的<code>CONTENT_SIZE</code>指的都是逻辑空间，而物理空间是逻辑空间<em>每个文件本身的副本数，如果replication是3，则<code>REMAINING_SPACE_QUOTA</code>的计算公式为：<br>`REMAINING_SPACE_QUOTA=SPACE_QUOTA - CONTENT_SIZE </em> 3`</p>
+<blockquote>
+<p>因此，空间配额限制的是<strong>物理空间</strong>，假设设置了一个文件夹的空间配额为3GB，副本数为3，那么最多可以存放总大小1GB的文件。</p>
+</blockquote>
+<h3 id="Storage-Type-Quota"><a href="#Storage-Type-Quota" class="headerlink" title="Storage Type Quota"></a>Storage Type Quota</h3><p>在2.7版本中，可以指定一个文件夹中的Storage Type是RAM_DISK/SSD/DISK/ARCHIVE。</p>
+<h2 id="通过shell显示quota"><a href="#通过shell显示quota" class="headerlink" title="通过shell显示quota"></a>通过shell显示quota</h2><p>显示Quota：<code>hadoop fs -count -q -h /tmp/testquota /tmp/testquota2</code><br>实际上是调用了<code>fs.getContentSummary()</code>方法，得到当前目录的<code>ContencSummary</code>信息。</p>
+<p>结果输出：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">10   8   none      inf       1 1 0        /tmp/testquata</div><div class="line">none inf 419430400 331751851 1 1 29226183 /tmp/testquata2</div></pre></td></tr></table></figure></p>
+<p>各列的含义：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div></pre></td><td class="code"><pre><div class="line">  /** </div><div class="line">   * Output format:</div><div class="line">   * &lt;----12----&gt; &lt;----15----&gt; &lt;----15----&gt; &lt;----15----&gt; &lt;----12----&gt; &lt;----12----&gt; &lt;-------18-------&gt;</div><div class="line">   *    QUOTA   REMAINING_QUATA SPACE_QUOTA SPACE_QUOTA_REM DIR_COUNT   FILE_COUNT   CONTENT_SIZE     FILE_NAME    </div><div class="line">   */</div><div class="line">QUOTA：文件数配额，（如果没有配额，则显示为none，空间配额同理）</div><div class="line">    =quota</div><div class="line">    </div><div class="line">REMAINING_QUATA：剩余的文件数配额（剩余能创建的目录和文件数量）</div><div class="line">    =quota-fileCount-dirCount（如果没有配额，则显示为inf）</div><div class="line"></div><div class="line">SPACE_QUOTA：空间配额（限制磁盘占用大小）</div><div class="line">    =spaceQuota</div><div class="line"></div><div class="line">SPACE_QUOTA_REM：剩余可以用的磁盘空间</div><div class="line">    =spaceQuota-spaceConsumed</div><div class="line"></div><div class="line">FILE_COUNT/FILE_COUNT：文件/目录数</div><div class="line"></div><div class="line">CONTENT_SIZE：逻辑空间大小，不计副本因素</div><div class="line">    =每个文件/文件的spaceConsumed/其replication</div></pre></td></tr></table></figure></p>
+<h2 id="通过编程设置和显示Quota"><a href="#通过编程设置和显示Quota" class="headerlink" title="通过编程设置和显示Quota"></a>通过编程设置和显示Quota</h2><h3 id="设置Quota"><a href="#设置Quota" class="headerlink" title="设置Quota"></a>设置Quota</h3><p>可以通过<code>DistributedFileSystem.set/getQuota()</code>等一系列方法来设置Quota，在2.7版本中，可以分别设置namespace和storagespace的Quota，还可以StorageType Quota。</p>
+<p>写文件超出限额具体的异常信息：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div></pre></td><td class="code"><pre><div class="line">16/07/12 16:55:27 WARN hdfs.DFSClient: DataStreamer Exception</div><div class="line">org.apache.hadoop.hdfs.protocol.DSQuotaExceededException: The DiskSpace quota of /tmp/testquata2 is exceeded: quota = 41943040 B = 40 MB but diskspace consumed = 402653184 B = 384 MB</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.INodeDirectoryWithQuota.verifyQuota(INodeDirectoryWithQuota.java:195)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.FSDirectory.verifyQuota(FSDirectory.java:2111)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.FSDirectory.updateCount(FSDirectory.java:1845)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.FSDirectory.updateCount(FSDirectory.java:1820)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.FSDirectory.addBlock(FSDirectory.java:373)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.FSNamesystem.saveAllocatedBlock(FSNamesystem.java:2965)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.FSNamesystem.getAdditionalBlock(FSNamesystem.java:2636)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.NameNodeRpcServer.addBlock(NameNodeRpcServer.java:563)</div><div class="line">        at org.apache.hadoop.hdfs.protocolPB.ClientNamenodeProtocolServerSideTranslatorPB.addBlock(ClientNamenodeProtocolServerSideTranslatorPB.java:407)</div><div class="line">        at org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos$ClientNamenodeProtocol$2.callBlockingMethod(ClientNamenodeProtocolProtos.java)</div><div class="line">        at org.apache.hadoop.ipc.ProtobufRpcEngine$Server$ProtoBufRpcInvoker.call(ProtobufRpcEngine.java:585)</div><div class="line">        at org.apache.hadoop.ipc.RPC$Server.call(RPC.java:928)</div><div class="line">        at org.apache.hadoop.ipc.Server$Handler$1.run(Server.java:1962)</div><div class="line">        at org.apache.hadoop.ipc.Server$Handler$1.run(Server.java:1)</div><div class="line">        at java.security.AccessController.doPrivileged(Native Method)</div><div class="line">        at javax.security.auth.Subject.doAs(Subject.java:415)</div><div class="line">        at org.apache.hadoop.security.UserGroupInformation.doAs(UserGroupInformation.java:1548)</div><div class="line">        at org.apache.hadoop.ipc.Server$Handler.run(Server.java:1957)</div><div class="line"></div><div class="line">        at sun.reflect.NativeConstructorAccessorImpl.newInstance0(Native Method)</div><div class="line">        at sun.reflect.NativeConstructorAccessorImpl.newInstance(NativeConstructorAccessorImpl.java:57)</div><div class="line">        at sun.reflect.DelegatingConstructorAccessorImpl.newInstance(DelegatingConstructorAccessorImpl.java:45)</div><div class="line">        at java.lang.reflect.Constructor.newInstance(Constructor.java:526)</div><div class="line">        at org.apache.hadoop.ipc.RemoteException.instantiateException(RemoteException.java:106)</div><div class="line">        at org.apache.hadoop.ipc.RemoteException.unwrapRemoteException(RemoteException.java:73)</div><div class="line">        at org.apache.hadoop.hdfs.DFSOutputStream$DataStreamer.locateFollowingBlock(DFSOutputStream.java:1267)</div><div class="line">        at org.apache.hadoop.hdfs.DFSOutputStream$DataStreamer.nextBlockOutputStream(DFSOutputStream.java:1112)</div><div class="line">        at org.apache.hadoop.hdfs.DFSOutputStream$DataStreamer.run(DFSOutputStream.java:522)</div><div class="line">Caused by: org.apache.hadoop.ipc.RemoteException(org.apache.hadoop.hdfs.protocol.DSQuotaExceededException): The DiskSpace quota of /tmp/testquata2 is exceeded: quota = 41943040 B = 40 MB but diskspace consumed = 402653184 B = 384 MB</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.INodeDirectoryWithQuota.verifyQuota(INodeDirectoryWithQuota.java:195)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.FSDirectory.verifyQuota(FSDirectory.java:2111)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.FSDirectory.updateCount(FSDirectory.java:1845)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.FSDirectory.updateCount(FSDirectory.java:1820)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.FSDirectory.addBlock(FSDirectory.java:373)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.FSNamesystem.saveAllocatedBlock(FSNamesystem.java:2965)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.FSNamesystem.getAdditionalBlock(FSNamesystem.java:2636)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.NameNodeRpcServer.addBlock(NameNodeRpcServer.java:563)</div><div class="line">        at org.apache.hadoop.hdfs.protocolPB.ClientNamenodeProtocolServerSideTranslatorPB.addBlock(ClientNamenodeProtocolServerSideTranslatorPB.java:407)</div><div class="line">        at org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos$ClientNamenodeProtocol$2.callBlockingMethod(ClientNamenodeProtocolProtos.java)</div><div class="line">        at org.apache.hadoop.ipc.ProtobufRpcEngine$Server$ProtoBufRpcInvoker.call(ProtobufRpcEngine.java:585)</div><div class="line">        at org.apache.hadoop.ipc.RPC$Server.call(RPC.java:928)</div><div class="line">        at org.apache.hadoop.ipc.Server$Handler$1.run(Server.java:1962)</div><div class="line">        at org.apache.hadoop.ipc.Server$Handler$1.run(Server.java:1)</div><div class="line">        at java.security.AccessController.doPrivileged(Native Method)</div><div class="line">        at javax.security.auth.Subject.doAs(Subject.java:415)</div><div class="line">        at org.apache.hadoop.security.UserGroupInformation.doAs(UserGroupInformation.java:1548)</div><div class="line">        at org.apache.hadoop.ipc.Server$Handler.run(Server.java:1957)</div><div class="line"></div><div class="line">        at org.apache.hadoop.ipc.Client.call(Client.java:1406)</div><div class="line">        at org.apache.hadoop.ipc.Client.call(Client.java:1359)</div><div class="line">        at org.apache.hadoop.ipc.ProtobufRpcEngine$Invoker.invoke(ProtobufRpcEngine.java:206)</div><div class="line">        at com.sun.proxy.$Proxy9.addBlock(Unknown Source)</div><div class="line">        at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)</div><div class="line">        at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57)</div><div class="line">        at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)</div><div class="line">        at java.lang.reflect.Method.invoke(Method.java:606)</div><div class="line">        at org.apache.hadoop.io.retry.RetryInvocationHandler.invokeMethod(RetryInvocationHandler.java:186)</div><div class="line">        at org.apache.hadoop.io.retry.RetryInvocationHandler.invoke(RetryInvocationHandler.java:102)</div><div class="line">        at com.sun.proxy.$Proxy9.addBlock(Unknown Source)</div><div class="line">        at org.apache.hadoop.hdfs.protocolPB.ClientNamenodeProtocolTranslatorPB.addBlock(ClientNamenodeProtocolTranslatorPB.java:348)</div><div class="line">        at org.apache.hadoop.hdfs.DFSOutputStream$DataStreamer.locateFollowingBlock(DFSOutputStream.java:1264)</div><div class="line">        ... 2 more</div><div class="line">put: The DiskSpace quota of /tmp/testquata2 is exceeded: quota = 41943040 B = 40 MB but diskspace consumed = 402653184 B = 384 MB</div></pre></td></tr></table></figure></p>
+
+      
+    </div>
+
+  </div>
+
+  <div class="article-footer">
+    <div class="article-meta pull-left">
+
+    
+      
+
+    <span class="post-categories">
+      <i class="icon-categories"></i>
+        <a href="/categories/Hadoop/">Hadoop</a>, <a href="/categories/Hadoop/HDFS/">HDFS</a>, <a href="/categories/Hadoop/HDFS/大数据平台/">大数据平台</a>
+    </span>
+    
+
+    
+    
+
+    <span class="post-tags">
+      <i class="icon-tags"></i>
+        <a href="/tags/HDFS/">HDFS</a><a href="/tags/Quota/">Quota</a>
+    </span>
     
 
     </div>

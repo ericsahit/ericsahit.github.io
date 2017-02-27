@@ -1,0 +1,162 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  <title>HDFS配额总结 | Haihua&#39;s blog | Live hard or Die hard</title>
+
+  
+  <meta name="author" content="Wang Haihua">
+  
+
+  
+  <meta name="description" content="学习总结 思考感悟 知识总结">
+  
+
+  
+  
+  <meta name="keywords" content="HDFS,Quota">
+  
+
+  <meta id="viewport" name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+  <meta property="og:title" content="HDFS配额总结"/>
+
+  <meta property="og:site_name" content="Haihua&#39;s blog"/>
+
+  
+  <meta property="og:image" content="/favicon.ico"/>
+  
+
+  <link href="/favicon.ico" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="Haihua&#39;s blog" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+</head>
+
+
+<body>
+<div class="blog">
+  <div class="content">
+
+    <header>
+  <div class="site-branding">
+    <h1 class="site-title">
+      <a href="/">Haihua&#39;s blog</a>
+    </h1>
+    <p class="site-description">Live hard or Die hard</p>
+  </div>
+  <nav class="site-navigation">
+    <ul>
+      
+        <li><a href="/">主页</a></li>
+      
+        <li><a href="/archives">归档</a></li>
+      
+    </ul>
+  </nav>
+</header>
+
+    <main class="site-main posts-loop">
+    <article>
+
+  
+    
+    <h3 class="article-title"><span>HDFS配额总结</span></h3>
+    
+  
+
+  <div class="article-top-meta">
+    <span class="posted-on">
+      <a href="/2016/08/01/HDFS配额总结/" rel="bookmark">
+        <time class="entry-date published" datetime="2016-08-01T02:00:40.000Z">
+          2016-08-01
+        </time>
+      </a>
+    </span>
+  </div>
+
+
+  
+
+  <div class="article-content">
+    <div class="entry">
+      
+        <p>HDFS允许管理员给私人<strong>目录</strong>设置其下面文件夹和文件的总数量配额，或空间使用总量配额。所以HDFS配额的对象是<strong>目录</strong>，而非<em>用户</em>。如果需要实现用户级别的配额，则需要采用第三方系统进行逻辑管理并映射到文件夹配额。</p>
+<p>在往有配额的目录中写数据时，如果超过限额，会提示<code>DSQuotaExceededException</code>异常，所以<strong>提早提醒文件夹所属的用户</strong>非常有意义。</p>
+<h2 id="文件数配额（Name-Quota）"><a href="#文件数配额（Name-Quota）" class="headerlink" title="文件数配额（Name Quota）"></a>文件数配额（Name Quota）</h2><p>文件数配额指的是可以限制当前文件夹下，所有文件和文件夹的总数量（包含所有的文件夹和文件inode）.类似于linux系统中ulimit里的hard limit。</p>
+<h2 id="空间配额（Space-Quota）"><a href="#空间配额（Space-Quota）" class="headerlink" title="空间配额（Space Quota）"></a>空间配额（Space Quota）</h2><p>空间配额指的是可以限制当前文件夹下，所有文件（包含子文件夹中的数据文件，会递归的去统计）的总大小，设置值包含副本因素，即<code>N=fileSize * Replication</code>。</p>
+<blockquote>
+<p>文件数配合空间配额可以同时使用，并不冲突。同时测试发现空间配额会有384MB物理空间（128MB逻辑空间，默认数据块大小）的固定预留，就是说当空间配额还剩下384MB时候，写文件就会失败。</p>
+</blockquote>
+<p>设置空间配额：<code>dfsadmin -setSpaceQuota &lt;N&gt; &lt;directory&gt;...&lt;directory&gt;</code><br>给每个目录设置空间配额为<em>N</em>  Byte，<em>N</em>可以是5g或者2t。空间配额表示这个文件夹下所有文件的总大小，包含副本因素，即<code>N=fileSize * Replication</code>。</p>
+<p>清除空间配额：<code>dfsadmin -clrSpaceQuota &lt;directory&gt;...&lt;directory&gt;</code><br>清除各个目录的空间配额。实际上是把空间配额设置为0。</p>
+<blockquote>
+<p>设置配额必须由管理员来进行。</p>
+</blockquote>
+<h2 id="物理空间与逻辑空间"><a href="#物理空间与逻辑空间" class="headerlink" title="物理空间与逻辑空间"></a>物理空间与逻辑空间</h2><ul>
+<li>物理空间：文件实际占用HDFS的大小，<strong>包含副本因素</strong>，等于逻辑空间*副本数。</li>
+<li>逻辑空间：文件本身大小，<code>du</code>命令显示的结果。</li>
+</ul>
+<p><code>hdfs fsck</code>和<code>hadoop fs -count</code> 出来的<code>CONTENT_SIZE</code>指的都是逻辑空间，而物理空间是逻辑空间<em>每个文件本身的副本数，如果replication是3，则<code>REMAINING_SPACE_QUOTA</code>的计算公式为：<br>`REMAINING_SPACE_QUOTA=SPACE_QUOTA - CONTENT_SIZE </em> 3`</p>
+<blockquote>
+<p>因此，空间配额限制的是<strong>物理空间</strong>，假设设置了一个文件夹的空间配额为3GB，副本数为3，那么最多可以存放总大小1GB的文件。</p>
+</blockquote>
+<h3 id="Storage-Type-Quota"><a href="#Storage-Type-Quota" class="headerlink" title="Storage Type Quota"></a>Storage Type Quota</h3><p>在2.7版本中，可以指定一个文件夹中的Storage Type是RAM_DISK/SSD/DISK/ARCHIVE。</p>
+<h2 id="通过shell显示quota"><a href="#通过shell显示quota" class="headerlink" title="通过shell显示quota"></a>通过shell显示quota</h2><p>显示Quota：<code>hadoop fs -count -q -h /tmp/testquota /tmp/testquota2</code><br>实际上是调用了<code>fs.getContentSummary()</code>方法，得到当前目录的<code>ContencSummary</code>信息。</p>
+<p>结果输出：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">10   8   none      inf       1 1 0        /tmp/testquata</div><div class="line">none inf 419430400 331751851 1 1 29226183 /tmp/testquata2</div></pre></td></tr></table></figure></p>
+<p>各列的含义：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div></pre></td><td class="code"><pre><div class="line">  /** </div><div class="line">   * Output format:</div><div class="line">   * &lt;----12----&gt; &lt;----15----&gt; &lt;----15----&gt; &lt;----15----&gt; &lt;----12----&gt; &lt;----12----&gt; &lt;-------18-------&gt;</div><div class="line">   *    QUOTA   REMAINING_QUATA SPACE_QUOTA SPACE_QUOTA_REM DIR_COUNT   FILE_COUNT   CONTENT_SIZE     FILE_NAME    </div><div class="line">   */</div><div class="line">QUOTA：文件数配额，（如果没有配额，则显示为none，空间配额同理）</div><div class="line">    =quota</div><div class="line">    </div><div class="line">REMAINING_QUATA：剩余的文件数配额（剩余能创建的目录和文件数量）</div><div class="line">    =quota-fileCount-dirCount（如果没有配额，则显示为inf）</div><div class="line"></div><div class="line">SPACE_QUOTA：空间配额（限制磁盘占用大小）</div><div class="line">    =spaceQuota</div><div class="line"></div><div class="line">SPACE_QUOTA_REM：剩余可以用的磁盘空间</div><div class="line">    =spaceQuota-spaceConsumed</div><div class="line"></div><div class="line">FILE_COUNT/FILE_COUNT：文件/目录数</div><div class="line"></div><div class="line">CONTENT_SIZE：逻辑空间大小，不计副本因素</div><div class="line">    =每个文件/文件的spaceConsumed/其replication</div></pre></td></tr></table></figure></p>
+<h2 id="通过编程设置和显示Quota"><a href="#通过编程设置和显示Quota" class="headerlink" title="通过编程设置和显示Quota"></a>通过编程设置和显示Quota</h2><h3 id="设置Quota"><a href="#设置Quota" class="headerlink" title="设置Quota"></a>设置Quota</h3><p>可以通过<code>DistributedFileSystem.set/getQuota()</code>等一系列方法来设置Quota，在2.7版本中，可以分别设置namespace和storagespace的Quota，还可以StorageType Quota。</p>
+<p>写文件超出限额具体的异常信息：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div></pre></td><td class="code"><pre><div class="line">16/07/12 16:55:27 WARN hdfs.DFSClient: DataStreamer Exception</div><div class="line">org.apache.hadoop.hdfs.protocol.DSQuotaExceededException: The DiskSpace quota of /tmp/testquata2 is exceeded: quota = 41943040 B = 40 MB but diskspace consumed = 402653184 B = 384 MB</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.INodeDirectoryWithQuota.verifyQuota(INodeDirectoryWithQuota.java:195)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.FSDirectory.verifyQuota(FSDirectory.java:2111)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.FSDirectory.updateCount(FSDirectory.java:1845)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.FSDirectory.updateCount(FSDirectory.java:1820)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.FSDirectory.addBlock(FSDirectory.java:373)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.FSNamesystem.saveAllocatedBlock(FSNamesystem.java:2965)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.FSNamesystem.getAdditionalBlock(FSNamesystem.java:2636)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.NameNodeRpcServer.addBlock(NameNodeRpcServer.java:563)</div><div class="line">        at org.apache.hadoop.hdfs.protocolPB.ClientNamenodeProtocolServerSideTranslatorPB.addBlock(ClientNamenodeProtocolServerSideTranslatorPB.java:407)</div><div class="line">        at org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos$ClientNamenodeProtocol$2.callBlockingMethod(ClientNamenodeProtocolProtos.java)</div><div class="line">        at org.apache.hadoop.ipc.ProtobufRpcEngine$Server$ProtoBufRpcInvoker.call(ProtobufRpcEngine.java:585)</div><div class="line">        at org.apache.hadoop.ipc.RPC$Server.call(RPC.java:928)</div><div class="line">        at org.apache.hadoop.ipc.Server$Handler$1.run(Server.java:1962)</div><div class="line">        at org.apache.hadoop.ipc.Server$Handler$1.run(Server.java:1)</div><div class="line">        at java.security.AccessController.doPrivileged(Native Method)</div><div class="line">        at javax.security.auth.Subject.doAs(Subject.java:415)</div><div class="line">        at org.apache.hadoop.security.UserGroupInformation.doAs(UserGroupInformation.java:1548)</div><div class="line">        at org.apache.hadoop.ipc.Server$Handler.run(Server.java:1957)</div><div class="line"></div><div class="line">        at sun.reflect.NativeConstructorAccessorImpl.newInstance0(Native Method)</div><div class="line">        at sun.reflect.NativeConstructorAccessorImpl.newInstance(NativeConstructorAccessorImpl.java:57)</div><div class="line">        at sun.reflect.DelegatingConstructorAccessorImpl.newInstance(DelegatingConstructorAccessorImpl.java:45)</div><div class="line">        at java.lang.reflect.Constructor.newInstance(Constructor.java:526)</div><div class="line">        at org.apache.hadoop.ipc.RemoteException.instantiateException(RemoteException.java:106)</div><div class="line">        at org.apache.hadoop.ipc.RemoteException.unwrapRemoteException(RemoteException.java:73)</div><div class="line">        at org.apache.hadoop.hdfs.DFSOutputStream$DataStreamer.locateFollowingBlock(DFSOutputStream.java:1267)</div><div class="line">        at org.apache.hadoop.hdfs.DFSOutputStream$DataStreamer.nextBlockOutputStream(DFSOutputStream.java:1112)</div><div class="line">        at org.apache.hadoop.hdfs.DFSOutputStream$DataStreamer.run(DFSOutputStream.java:522)</div><div class="line">Caused by: org.apache.hadoop.ipc.RemoteException(org.apache.hadoop.hdfs.protocol.DSQuotaExceededException): The DiskSpace quota of /tmp/testquata2 is exceeded: quota = 41943040 B = 40 MB but diskspace consumed = 402653184 B = 384 MB</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.INodeDirectoryWithQuota.verifyQuota(INodeDirectoryWithQuota.java:195)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.FSDirectory.verifyQuota(FSDirectory.java:2111)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.FSDirectory.updateCount(FSDirectory.java:1845)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.FSDirectory.updateCount(FSDirectory.java:1820)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.FSDirectory.addBlock(FSDirectory.java:373)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.FSNamesystem.saveAllocatedBlock(FSNamesystem.java:2965)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.FSNamesystem.getAdditionalBlock(FSNamesystem.java:2636)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.NameNodeRpcServer.addBlock(NameNodeRpcServer.java:563)</div><div class="line">        at org.apache.hadoop.hdfs.protocolPB.ClientNamenodeProtocolServerSideTranslatorPB.addBlock(ClientNamenodeProtocolServerSideTranslatorPB.java:407)</div><div class="line">        at org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos$ClientNamenodeProtocol$2.callBlockingMethod(ClientNamenodeProtocolProtos.java)</div><div class="line">        at org.apache.hadoop.ipc.ProtobufRpcEngine$Server$ProtoBufRpcInvoker.call(ProtobufRpcEngine.java:585)</div><div class="line">        at org.apache.hadoop.ipc.RPC$Server.call(RPC.java:928)</div><div class="line">        at org.apache.hadoop.ipc.Server$Handler$1.run(Server.java:1962)</div><div class="line">        at org.apache.hadoop.ipc.Server$Handler$1.run(Server.java:1)</div><div class="line">        at java.security.AccessController.doPrivileged(Native Method)</div><div class="line">        at javax.security.auth.Subject.doAs(Subject.java:415)</div><div class="line">        at org.apache.hadoop.security.UserGroupInformation.doAs(UserGroupInformation.java:1548)</div><div class="line">        at org.apache.hadoop.ipc.Server$Handler.run(Server.java:1957)</div><div class="line"></div><div class="line">        at org.apache.hadoop.ipc.Client.call(Client.java:1406)</div><div class="line">        at org.apache.hadoop.ipc.Client.call(Client.java:1359)</div><div class="line">        at org.apache.hadoop.ipc.ProtobufRpcEngine$Invoker.invoke(ProtobufRpcEngine.java:206)</div><div class="line">        at com.sun.proxy.$Proxy9.addBlock(Unknown Source)</div><div class="line">        at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)</div><div class="line">        at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57)</div><div class="line">        at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)</div><div class="line">        at java.lang.reflect.Method.invoke(Method.java:606)</div><div class="line">        at org.apache.hadoop.io.retry.RetryInvocationHandler.invokeMethod(RetryInvocationHandler.java:186)</div><div class="line">        at org.apache.hadoop.io.retry.RetryInvocationHandler.invoke(RetryInvocationHandler.java:102)</div><div class="line">        at com.sun.proxy.$Proxy9.addBlock(Unknown Source)</div><div class="line">        at org.apache.hadoop.hdfs.protocolPB.ClientNamenodeProtocolTranslatorPB.addBlock(ClientNamenodeProtocolTranslatorPB.java:348)</div><div class="line">        at org.apache.hadoop.hdfs.DFSOutputStream$DataStreamer.locateFollowingBlock(DFSOutputStream.java:1264)</div><div class="line">        ... 2 more</div><div class="line">put: The DiskSpace quota of /tmp/testquata2 is exceeded: quota = 41943040 B = 40 MB but diskspace consumed = 402653184 B = 384 MB</div></pre></td></tr></table></figure></p>
+
+      
+    </div>
+
+  </div>
+
+  <div class="article-footer">
+    <div class="article-meta pull-left">
+
+    
+      
+
+    <span class="post-categories">
+      <i class="icon-categories"></i>
+        <a href="/categories/Hadoop/">Hadoop</a>, <a href="/categories/Hadoop/HDFS/">HDFS</a>, <a href="/categories/Hadoop/HDFS/大数据平台/">大数据平台</a>
+    </span>
+    
+
+    
+    
+
+    <span class="post-tags">
+      <i class="icon-tags"></i>
+        <a href="/tags/HDFS/">HDFS</a><a href="/tags/Quota/">Quota</a>
+    </span>
+    
+
+    </div>
+
+    
+  </div>
+</article>
+
+
+    </main>
+
+    <footer class="site-footer">
+  <p class="site-info">
+    Proudly powered by <a href="https://hexo.io/" target="_blank">Hexo</a> and
+    Theme by <a href="https://github.com/CodeDaraW/Hacker" target="_blank">Hacker</a>
+    </br>
+    
+    &copy; 2017 Wang Haihua
+    
+  </p>
+</footer>
+    
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,181 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  <title>Git命令使用总结 | Haihua&#39;s blog | Live hard or Die hard</title>
+
+  
+  <meta name="author" content="Wang Haihua">
+  
+
+  
+  <meta name="description" content="学习总结 思考感悟 知识总结">
+  
+
+  
+  
+  <meta name="keywords" content="Git,Tools">
+  
+
+  <meta id="viewport" name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+  <meta property="og:title" content="Git命令使用总结"/>
+
+  <meta property="og:site_name" content="Haihua&#39;s blog"/>
+
+  
+  <meta property="og:image" content="/favicon.ico"/>
+  
+
+  <link href="/favicon.ico" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="Haihua&#39;s blog" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+</head>
+
+
+<body>
+<div class="blog">
+  <div class="content">
+
+    <header>
+  <div class="site-branding">
+    <h1 class="site-title">
+      <a href="/">Haihua&#39;s blog</a>
+    </h1>
+    <p class="site-description">Live hard or Die hard</p>
+  </div>
+  <nav class="site-navigation">
+    <ul>
+      
+        <li><a href="/">主页</a></li>
+      
+        <li><a href="/archives">归档</a></li>
+      
+    </ul>
+  </nav>
+</header>
+
+    <main class="site-main posts-loop">
+    <article>
+
+  
+    
+    <h3 class="article-title"><span>Git命令使用总结</span></h3>
+    
+  
+
+  <div class="article-top-meta">
+    <span class="posted-on">
+      <a href="/2016/11/10/Git命令使用总结/" rel="bookmark">
+        <time class="entry-date published" datetime="2016-11-10T08:00:01.000Z">
+          2016-11-10
+        </time>
+      </a>
+    </span>
+  </div>
+
+
+  
+
+  <div class="article-content">
+    <div class="entry">
+      
+        <h2 id="git-commit"><a href="#git-commit" class="headerlink" title="git commit"></a>git commit</h2><ul>
+<li>修改上次提交的作者信息：<code>git commit --amend --author=&#39;Your Name &lt;you@example.com&gt;&#39;</code></li>
+<li>dad</li>
+</ul>
+<h2 id="git-stash"><a href="#git-stash" class="headerlink" title="git stash"></a>git stash</h2><ul>
+<li>暂时存储现有未提交的内容：<code>git stash</code></li>
+<li>如果需要恢复，首先查看stash列表：<code>git stash list</code></li>
+<li>恢复stash内容：<code>git stash apply</code></li>
+<li>删除stash内容：<code>git stash drop</code></li>
+<li>恢复且删除stash内容：<code>git stash pop</code></li>
+<li>如果有多个stash，恢复指定的stash内容：<code>git stash apply stash@{0}</code></li>
+</ul>
+<p>##git 分支</p>
+<ul>
+<li><p>删除远程分支：<code>git push [remote-server] :[branch-name]</code><br>例如删除origin中的dev分支：<code>git push origin :dev</code></p>
+</li>
+<li><p>删除本地分支：<code>git branch -d [branch-name]</code></p>
+</li>
+<li>如果没有合并分支，则不能直接删除，只能强制删除：<code>git branch -D [branch-name]</code></li>
+<li>将指定分支合并到当前分支<code>git merge [branch-name]</code></li>
+</ul>
+<h2 id="git-提交"><a href="#git-提交" class="headerlink" title="git 提交"></a>git 提交</h2><ul>
+<li><code>git add remote origin http://xxx.com/xx</code> </li>
+</ul>
+<h2 id="git-远程仓库"><a href="#git-远程仓库" class="headerlink" title="git 远程仓库"></a>git 远程仓库</h2><ul>
+<li>查看远程仓库：<code>git remote -v</code></li>
+<li>增加一个远程仓库：<code>git remote add &lt;shortname&gt; &lt;url&gt;</code><br>例如：<code>git remote add official https://github.com/apache/spark</code><br>增加shortname之后，就可以其来替代URL。<br>远程的分支可以使用<code>&lt;shortname&gt;/&lt;branchname&gt;</code>来访问到，例如根据Spark官方的2.0分支生成本地的分支：<code>git checkout -b spark-2.0-local official/branch-2.0</code><blockquote>
+<p>仓库默认会有一个origin远程仓库，和一个master分支。</p>
+</blockquote>
+</li>
+<li>查看远程仓库的具体信息：<code>git remote show &lt;shortname&gt;</code><br>可以查看一些远程仓库的具体信息</li>
+<li>重命名或删除远程分支：<code>git remote rename(rm) &lt;shortname&gt; [another-name]</code></li>
+<li>从远程仓库拉取：<code>git fetch &lt;shortname&gt;</code><br>例如想拉取官方最新的一些改动：<code>git fetch official</code></li>
+</ul>
+<h2 id="git-log"><a href="#git-log" class="headerlink" title="git log"></a>git log</h2><ul>
+<li>图形化查看git log：<code>git log --all --decorate --graph</code><br>远程仓库有可能会有多个，例如官方的Spark版本和公司/学校的Spark版本</li>
+</ul>
+<p>##git rebase</p>
+<ul>
+<li><code>git pull</code> = <code>git fetch &amp;&amp; git merge FETCH_HEAD</code></li>
+<li><code>git pull --rebase</code> = <code>git fetch &amp;&amp; git rebase FETCH_HEAD</code></li>
+</ul>
+<h2 id="git-rebase-VS-git-merge"><a href="#git-rebase-VS-git-merge" class="headerlink" title="git rebase VS git merge"></a>git rebase VS git merge</h2><h2 id="git-config"><a href="#git-config" class="headerlink" title="git config"></a>git config</h2><ul>
+<li>修改自己的用户名和邮箱信息：<br><code>git config --global user.name &quot;Your Name&quot;</code><br><code>git config --global user.email you@example.com</code></li>
+</ul>
+
+      
+    </div>
+
+  </div>
+
+  <div class="article-footer">
+    <div class="article-meta pull-left">
+
+    
+      
+
+    <span class="post-categories">
+      <i class="icon-categories"></i>
+        <a href="/categories/Git/">Git</a>, <a href="/categories/Git/生产效率/">生产效率</a>
+    </span>
+    
+
+    
+    
+
+    <span class="post-tags">
+      <i class="icon-tags"></i>
+        <a href="/tags/Git/">Git</a><a href="/tags/Tools/">Tools</a>
+    </span>
+    
+
+    </div>
+
+    
+  </div>
+</article>
+
+
+    </main>
+
+    <footer class="site-footer">
+  <p class="site-info">
+    Proudly powered by <a href="https://hexo.io/" target="_blank">Hexo</a> and
+    Theme by <a href="https://github.com/CodeDaraW/Hacker" target="_blank">Hacker</a>
+    </br>
+    
+    &copy; 2017 Wang Haihua
+    
+  </p>
+</footer>
+    
+  </div>
+</div>
+</body>
+</html>

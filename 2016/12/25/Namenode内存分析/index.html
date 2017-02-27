@@ -1,0 +1,287 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  <title>Namenode内存分析 | Haihua&#39;s blog | Live hard or Die hard</title>
+
+  
+  <meta name="author" content="Wang Haihua">
+  
+
+  
+  <meta name="description" content="学习总结 思考感悟 知识总结">
+  
+
+  
+  
+  <meta name="keywords" content="Hadoop,Namenode,JVM">
+  
+
+  <meta id="viewport" name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+  <meta property="og:title" content="Namenode内存分析"/>
+
+  <meta property="og:site_name" content="Haihua&#39;s blog"/>
+
+  
+  <meta property="og:image" content="/favicon.ico"/>
+  
+
+  <link href="/favicon.ico" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="Haihua&#39;s blog" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+</head>
+
+
+<body>
+<div class="blog">
+  <div class="content">
+
+    <header>
+  <div class="site-branding">
+    <h1 class="site-title">
+      <a href="/">Haihua&#39;s blog</a>
+    </h1>
+    <p class="site-description">Live hard or Die hard</p>
+  </div>
+  <nav class="site-navigation">
+    <ul>
+      
+        <li><a href="/">主页</a></li>
+      
+        <li><a href="/archives">归档</a></li>
+      
+    </ul>
+  </nav>
+</header>
+
+    <main class="site-main posts-loop">
+    <article>
+
+  
+    
+    <h3 class="article-title"><span>Namenode内存分析</span></h3>
+    
+  
+
+  <div class="article-top-meta">
+    <span class="posted-on">
+      <a href="/2016/12/25/Namenode内存分析/" rel="bookmark">
+        <time class="entry-date published" datetime="2016-12-25T12:55:11.000Z">
+          2016-12-25
+        </time>
+      </a>
+    </span>
+  </div>
+
+
+  
+
+  <div class="article-content">
+    <div class="entry">
+      
+        <p>最近在学习JVM内存调优,顺便对于Namenode的内存分析了一把,发现还是有很多<code>有意思</code>但是<code>危险</code>的地方。</p>
+<h2 id="1-结论"><a href="#1-结论" class="headerlink" title="1 结论"></a>1 结论</h2><h3 id="1-1-Namenode内存使用和趋势"><a href="#1-1-Namenode内存使用和趋势" class="headerlink" title="1.1 Namenode内存使用和趋势"></a>1.1 Namenode内存使用和趋势</h3><ul>
+<li><p>截止2016年12月22号14点,集群的文件和文件夹总数量为<code>293444427</code>,block数量为<code>348566581</code>,堆内存总大小为<code>148GB</code>,Old区大小为<code>130GB</code>,堆内存使用为<code>110GB~126GB</code>。 </p>
+<p>目前Namenode常驻内存(详细定义请参考<code>2.1</code>章节)使用为<code>110GB</code>,Old区使用率<code>84%</code>,即将突破<code>90%</code>,需要采取扩大内存(降低文件数量)等措施来规避<code>CMS GC降级为压缩式GC带来的漫长STW</code>风险。</p>
+</li>
+<li><p>依据DCM(我们的集群监控系统)数据,从12月1号到22号,集群文件数增长了<code>293444427 - 275847816=17596611</code>,大约1千7百万,常驻内存增长了<code>110GB - 103GB = 7GB</code>。<br>按照这个速度,<code>一个月</code>内堆内存常驻使用将会突破<code>90%</code>警戒线。</p>
+</li>
+<li><p>如果堆内存加大到<code>180GB</code>,全部给Old区的话增加30GB可用内存,按照估算(估算方法参考<code>2.3</code>章节)可以容纳的文件数在<code>362804019</code>左右,还可以增长的文件数需要控制在<code>69359591</code>以内,大约7千万文件量。</p>
+</li>
+</ul>
+<h3 id="1-2-Namenode内存配置修改建议"><a href="#1-2-Namenode内存配置修改建议" class="headerlink" title="1.2 Namenode内存配置修改建议"></a>1.2 Namenode内存配置修改建议</h3><h4 id="1-2-1-提升堆内存大小，降低Old区使用比例，规避压缩式GC的STW风险。"><a href="#1-2-1-提升堆内存大小，降低Old区使用比例，规避压缩式GC的STW风险。" class="headerlink" title="1.2.1 提升堆内存大小，降低Old区使用比例，规避压缩式GC的STW风险。"></a>1.2.1 提升堆内存大小，降低Old区使用比例，规避压缩式GC的STW风险。</h4><p>从2016年8月份至今,老年代的最大使用曾经达到<code>122.25g(94%)</code>，目前使用<code>110g(84%)</code>，平均使用达到<code>116.1g（89%）</code>。<br>堆内存增加到180g后能容纳的文件数在<code>362804019</code>左右,增长的文件数需要控制在<code>69359591</code>以内,大约7千万文件量。</p>
+<p>目前Namenode常驻内存内存使用为<code>110GB</code>,Old区使用率<code>84%</code>,按照这个月的增长速度估算,一个月内堆内存使用将会突破<code>90%</code>警戒线。<br>依据DCM数据,从12月1号到22号,集群文件数从<code>275847816</code>增长到<code>293444427</code>大约增长了<code>1千7百万</code>,<br>堆内存常驻内存增长了从<code>103GB</code>增长到<code>110GB</code>,增长了<code>7GB</code>。</p>
+<p>详细分析请参考<code>2. Name内存利用分析</code>章节。</p>
+<p>修改:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">-Xms180g -Xmx180g</div></pre></td></tr></table></figure></p>
+<h4 id="1-2-2-增加ParNew和CMS-GC使用的线程数量，目前是10，可以提升到18（24核下的默认值）。"><a href="#1-2-2-增加ParNew和CMS-GC使用的线程数量，目前是10，可以提升到18（24核下的默认值）。" class="headerlink" title="1.2.2 增加ParNew和CMS GC使用的线程数量，目前是10，可以提升到18（24核下的默认值）。"></a>1.2.2 增加ParNew和CMS GC使用的线程数量，目前是10，可以提升到18（24核下的默认值）。</h4><p>提升ParNew和CMS的GC效率，降低ParNew STW时间，<br>缓解在临时对象数量激增时发生ParNew GC频繁导致服务延迟增加，吞吐量降低问题。</p>
+<p>详细分析请参考<code>3. Namenode启动参数分析</code>章节。</p>
+<p>修改或者去掉以使用默认值:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">-XX:ParallelGCThreads=18</div></pre></td></tr></table></figure></p>
+<h4 id="1-2-3-设置当Old区域使用达到80-时候-提前启动CMS-GC。降低压缩式GC的STW风险。"><a href="#1-2-3-设置当Old区域使用达到80-时候-提前启动CMS-GC。降低压缩式GC的STW风险。" class="headerlink" title="1.2.3 设置当Old区域使用达到80%时候,提前启动CMS GC。降低压缩式GC的STW风险。"></a>1.2.3 设置当Old区域使用达到<code>80%</code>时候,提前启动CMS GC。降低压缩式GC的STW风险。</h4><p>目前GC配置缺少<code>UseCMSInitiatingOccupancyOnly</code>这项,<br>所以CMS GC启动是根据JVM自动确定,时机不确定而且有缺陷(来源于社区)。</p>
+<p>目前我们的Namenode Old区常驻内存使用率高,所以不适合设置比较低的值,常驻内存使用率高于这个值会造成频繁无效的CMS GC。<br>而如果设置过高的话,会造成Full GC风险升高。</p>
+<p>详细分析请参考<code>3. Namenode启动参数分析</code>章节。</p>
+<p>修改和增加:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">-XX:CMSInitiatingOccupancyFraction=80</div><div class="line">-XX:+UseCMSInitiatingOccupancyOnly</div></pre></td></tr></table></figure></p>
+<h4 id="1-2-4-设置Java8的永生代初始值MetaspaceSize为较大的值512m-避免MetaSpace用满需要增长而引发的Full-GC。"><a href="#1-2-4-设置Java8的永生代初始值MetaspaceSize为较大的值512m-避免MetaSpace用满需要增长而引发的Full-GC。" class="headerlink" title="1.2.4 设置Java8的永生代初始值MetaspaceSize为较大的值512m,避免MetaSpace用满需要增长而引发的Full GC。"></a>1.2.4 设置Java8的永生代初始值MetaspaceSize为较大的值512m,避免<code>MetaSpace用满需要增长</code>而引发的Full GC。</h4><p>参考文献[8],Java8采用MetaSpace替代PermGen,MetaSpace对于64bit Server模式的JVM默认初始大小<code>21m</code>,比较小。<br>另外,Java8的永生代默认没有上限,在用户代码不规范时候有可能发生无限增长,但是对于Namnode这种稳定运行的程序没有太大问题。</p>
+<p>增加:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">-XX:MetaspaceSize=512m</div></pre></td></tr></table></figure></p>
+<h4 id="1-2-5-打印更多的GC日志信息：JVM启动参数-晋升分布-停顿时间等。"><a href="#1-2-5-打印更多的GC日志信息：JVM启动参数-晋升分布-停顿时间等。" class="headerlink" title="1.2.5 打印更多的GC日志信息：JVM启动参数,晋升分布,停顿时间等。"></a>1.2.5 打印更多的GC日志信息：JVM启动参数,晋升分布,停顿时间等。</h4><p>JVM启动参数:可以查看一些隐藏和最终被设置的参数。</p>
+<p>晋升分布作为调整<code>-XX:MaxTenuringThreshold</code>参数和GC Young区域调优的重要参考。</p>
+<p>停顿时间作为衡量JVM用户程序执行吞吐率的重要参考。</p>
+<p>增加:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">-XX:+PrintCommandLineFlags</div><div class="line">-XX:+PrintTenuringDistribution</div><div class="line">-XX:+PrintGCApplicationStoppedTime</div></pre></td></tr></table></figure></p>
+<h3 id="1-3-其他建议"><a href="#1-3-其他建议" class="headerlink" title="1.3 其他建议"></a>1.3 其他建议</h3><ul>
+<li>控制集群的目录树/文件数/Block数量,采用合并小文件等措施,降低Namenode内存压力。</li>
+<li>调整默认blockSize为256m,降低block数量。缺点是只能控制增量数据,修改存量数据代价较大。</li>
+<li>调研G1内存回收策略。</li>
+</ul>
+<h2 id="2-Namenode内存利用分析"><a href="#2-Namenode内存利用分析" class="headerlink" title="2 Namenode内存利用分析"></a>2 Namenode内存利用分析</h2><h3 id="2-1-Namenode常驻内存使用和估算公式"><a href="#2-1-Namenode常驻内存使用和估算公式" class="headerlink" title="2.1 Namenode常驻内存使用和估算公式"></a>2.1 Namenode常驻内存使用和估算公式</h3><blockquote>
+<p>定义<code>Namenode常驻内存使用</code>是位于Old区,存活稳定,不可GC的内存使用部分。这部分内存使用主要随着目录/文件/Block数量的变化而变化。</p>
+</blockquote>
+<p>根据文献[3][4]和代码阅读,Namenode<code>常驻内存数据结构</code>按照数据量主要包含以下两部分(节点和网络拓扑信息/LeaseManager/SnapShotManager/CacheManager等部分由于数据量较小忽略):</p>
+<ul>
+<li><ol>
+<li><p>目录和文件树 Namespace</p>
+<p>a) Directory数据结构总大小: <code>SumDir = (24+96+44+48) * CountDir + 8 * (CountDir + CountFile)</code></p>
+<p>b) File数据结构总大小: <code>SumFile = (24+96+48) * CountFile + 8 * CountBlock</code></p>
+</li>
+</ol>
+</li>
+</ul>
+<p>合并上述 a) 和 b) 两部分,Namespace总大小: <code>SumNamespace = SumDir + SumFile = 220 * CountDir + 176 * CountFile + 8 * CountBlock</code></p>
+<ul>
+<li><ol>
+<li>文件与块的映射 BlockMap</li>
+</ol>
+</li>
+</ul>
+<p>BlockMap数据结构总大小: <code>SumBlockMap = 16 + 24 + JVMMemoryNN * 0.02 + (40 + 128) * CountBlock</code></p>
+<ul>
+<li>计算NN内存使用</li>
+</ul>
+<p>合并上述 1 和 2 两部分,得到NN内存使用总大小估算公式：<br><code>MemoryUsedNN = SumNamespace + SumBlockMap = 220 * CountDir + 176 * CountFile + 176 * CountBlock + JVMMemoryNN * 0.02</code></p>
+<p>假设文件数和目录数为1:1,NN内存使用总大小可以简化为:<br><code>MemoryUsedNN = SumNamespace + SumBlockMap = 198 * CountDirAndFile + 176 * CountBlock + JVMMemoryNN * 0.02</code></p>
+<blockquote>
+<p>如果文件数相对目录数量数量较多,上述估算结果会偏小一些</p>
+</blockquote>
+<h3 id="2-2-公司集群Namenode内存使用估算"><a href="#2-2-公司集群Namenode内存使用估算" class="headerlink" title="2.2 公司集群Namenode内存使用估算"></a>2.2 公司集群Namenode内存使用估算</h3><p>截止2016年12月22号14点,公司集群的文件和文件夹总数量为<code>293444427</code>,block数量为<code>348566581</code>,堆内存总大小为<code>148GB</code>,Old区大小为<code>130GB</code>,堆内存使用为<code>110GB~126GB</code>。</p>
+<p>Old区常驻使用率在<code>84%</code>(110/130),已经比较严重。</p>
+<p>按照上述公式,得NN内存常驻使用总大小为:<code>MemoryUsedNN = 198 * 293444427(54.1GB) + 176 * 348566581(57.1GB) + 0.02 * 148GB ~= 114.2GB(54.1G+57.1+3.0GB)</code></p>
+<p>估算值与实际在GC日志中看到的ParNew GC和CMS GC后的内存使用<code>110GB</code>(主要为常驻内存使用)相比,误差<code>3.5%</code>,估计较为准确,误差应该主要由于文件和目录比例大于1:1导致。</p>
+<h3 id="2-3-内存分析结论"><a href="#2-3-内存分析结论" class="headerlink" title="2.3 内存分析结论"></a>2.3 内存分析结论</h3><ol>
+<li><p>目前Namenode常驻内存内存使用为<code>110GB</code>,Old区使用率<code>84%</code>,即将突破<code>90%</code>,需要采取扩大内存(降低文件数量)等措施来规避STW风险。</p>
+</li>
+<li><p>依据DCM数据,从12月1号到22号,集群文件数增长了<code>293444427 - 275847816=17596611</code>,大约1千7百万,堆内存常驻内存增长了<code>110GB - 103GB = 7GB</code>。</p>
+<blockquote>
+<p>按照这个速度,<code>一个月</code>内堆内存使用将会突破<code>90%</code>警戒线</p>
+</blockquote>
+</li>
+<li><p>如果堆内存增大到180GB,Old区域增加30GB,按照上述估算公式和常驻内存使用量85%,<br>能容纳的文件数在<code>160 * 0.85 / 110 * 293444427 = 362804019</code>左右,也就是说还可以增长的文件数需要控制在<code>69359591</code>以内,大约7千万文件量。</p>
+</li>
+</ol>
+<h3 id="2-4-可以采取的措施"><a href="#2-4-可以采取的措施" class="headerlink" title="2.4 可以采取的措施"></a>2.4 可以采取的措施</h3><ol>
+<li><p>增大Namenode堆内存设置,目前是150GB,可以尝试增加到180GB。降低Old区使用比例,规避压缩式GC的STW风险。</p>
+<blockquote>
+<p>增大Old区域的堆内存,缺点是会使得CMS GC的<code>Remark</code>时间增长,目前是<code>0.8s</code>左右,影响不大。<br>参考文献[4]推荐,再进一步加大堆内存会有<code>JVM内存管理</code>的额外风险。</p>
+</blockquote>
+</li>
+<li><p>调整blockSize为256MB,降低block数量。缺点是只能修改增量数据。</p>
+</li>
+</ol>
+<h2 id="3-Namenode启动参数分析"><a href="#3-Namenode启动参数分析" class="headerlink" title="3. Namenode启动参数分析"></a>3. Namenode启动参数分析</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">/usr/local/jdk1.8.0_77/bin/java -Dproc_namenode -Xmx1024m -Djava.net.preferIPv4Stack=true -Dhadoop.log.dir=/usr/local/hadoop-2.7.2/logs -Dhadoop.log.file=hadoop.log -Dhadoop.home.dir=/usr/local/hadoop-2.7.2 -Dhadoop.id.str=hadoop -Dhadoop.root.logger=INFO,console -Djava.library.path=/usr/local/hadoop-2.7.2/lib/native -Dhadoop.policy.file=hadoop-policy.xml -Djava.net.preferIPv4Stack=true -Djava.net.preferIPv4Stack=true -Djava.net.preferIPv4Stack=true -Dhadoop.log.dir=/usr/local/hadoop-2.7.2/logs -Dhadoop.log.file=hadoop-hadoop-namenode-bigdata-hdp-apachenn01.xg01.log -Dhadoop.home.dir=/usr/local/hadoop-2.7.2 -Dhadoop.id.str=hadoop -Dhadoop.root.logger=INFO,RFA -Djava.library.path=/usr/local/hadoop-2.7.2/lib/native -Dhadoop.policy.file=hadoop-policy.xml -Djava.net.preferIPv4Stack=true -Dhadoop.security.logger=INFO,RFAS -Dhdfs.audit.logger=INFO,NullAppender -Dhadoop.security.logger=INFO,RFAS -Dhdfs.audit.logger=INFO,NullAppender -Dhadoop.security.logger=INFO,RFAS -Dhdfs.audit.logger=INFO,NullAppender -Xms150g -Xmx150g -Xmn20g -XX:SurvivorRatio=8 -XX:ParallelGCThreads=10 -XX:MaxTenuringThreshold=15 -XX:+UseParNewGC -XX:+UseConcMarkSweepGC -XX:CMSInitiatingOccupancyFraction=70 -verbose:gc -XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=2 -XX:GCLogFileSize=512M -Xloggc:/usr/local/hadoop-2.7.2/logs/namenode_gc.log -Xms150g -Xmx150g -Xmn20g -XX:SurvivorRatio=8 -XX:ParallelGCThreads=10 -XX:MaxTenuringThreshold=15 -XX:+UseParNewGC -XX:+UseConcMarkSweepGC -XX:CMSInitiatingOccupancyFraction=70 -verbose:gc -XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=2 -XX:GCLogFileSize=512M -Xloggc:/usr/local/hadoop-2.7.2/logs/namenode_gc.log -Xms150g -Xmx150g -Xmn20g -XX:SurvivorRatio=8 -XX:ParallelGCThreads=10 -XX:MaxTenuringThreshold=15 -XX:+UseParNewGC -XX:+UseConcMarkSweepGC -XX:CMSInitiatingOccupancyFraction=70 -verbose:gc -XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=2 -XX:GCLogFileSize=512M -Xloggc:/usr/local/hadoop-2.7.2/logs/namenode_gc.log -Dhadoop.security.logger=INFO,RFAS org.apache.hadoop.hdfs.server.namenode.NameNode</div></pre></td></tr></table></figure>
+<p>其中GC相关的关键属性（由于重复配置,GC相关的属性重复了三遍,以最后为准）：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">-Xms150g -Xmx150g -Xmn20g -XX:SurvivorRatio=8 -XX:ParallelGCThreads=10 -XX:MaxTenuringThreshold=15 </div><div class="line">-XX:+UseParNewGC -XX:+UseConcMarkSweepGC -XX:CMSInitiatingOccupancyFraction=70 </div><div class="line">-verbose:gc -XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=2 -XX:GCLogFileSize=512M</div></pre></td></tr></table></figure></p>
+<ul>
+<li><code>-Xms150g -Xmx150g</code>：堆内存大小最大和最小都是150g</li>
+<li><code>-Xmn20g</code>：新生代大小为20g，等于eden+2*survivor，意味着老年代为150-20=130g。</li>
+<li><code>-XX:SurvivorRatio=8</code>：Eden和Survivor的大小比值为8，意味着两个Survivor区和一个Eden区的比值为2：8，一个Survivor占整个年轻代的1/10</li>
+<li><code>-XX:ParallelGCThreads=10</code>：设置ParNew GC的线程并行数，默认为<code>8 + (Runtime.availableProcessors - 8) * 5/8</code>，24核机器为18。<strong>这里是否需要提升？</strong></li>
+<li><code>-XX:MaxTenuringThreshold=15</code>：设置对象在年轻代的最大年龄，超过这个年龄则会晋升到老年代</li>
+<li><code>-XX:+UseParNewGC</code>：设置新生代使用Parallel New GC</li>
+<li><code>-XX:+UseConcMarkSweepGC</code>：设置老年代使用CMS GC，当此项设置时候自动设置新生代为ParNew GC</li>
+<li><code>-XX:CMSInitiatingOccupancyFraction=70</code>：<br>老年代第一次占用达到该百分比时候，就会引发CMS的第一次垃圾回收周期。后继CMS GC由HotSpot自动优化计算得到。<br>如果后继也想指定老年代使用达到百分比,然后就进行CMS GC参数为<code>-XX:+UseCMSInitiatingOccupancyOnly</code>，建议同时设置。<br><strong>是否应该同时设置-XX:+UseCMSInitiatingOccupancyOnly？</strong></li>
+</ul>
+<blockquote>
+<p>这个值如果设置的太大,则很可能避免不了Full GC;如果设置的太小,CMS GC会进行的比较频繁。</p>
+</blockquote>
+<p>对于Namenode这样的常驻内存使用主要是稳定的目录文件数信息,而且随着文件数的增长堆内存使用稳定增长的场景,<br>CMS GC很多情况都是做的无用功,从log里也可以观察<code>CMS并发清除前后的堆内存使用</code>来验证,现象为CMS并发清除前后的堆内存使用差距很小,表明Old区域可以回收的对象基本诶呦。</p>
+<p>目前GC配置缺少<code>UseCMSInitiatingOccupancyOnly</code>这项,所以CMS GC启动是根据JVM自动确定,时机不确定而且有缺陷(来源于社区)。</p>
+<p>目前线上的Namenode常驻内存使用率高,所以不适合设置比较低的值,会造成频繁无效的CMS GC。<br>如果设置太高的话,会造成Full GC风险升高。<br>因此可以考虑将这个值设置比较大,例如<code>80~85</code>。</p>
+<h2 id="4-GC-log分析"><a href="#4-GC-log分析" class="headerlink" title="4. GC log分析"></a>4. GC log分析</h2><h3 id="4-1-Minor-GC日志解析"><a href="#4-1-Minor-GC日志解析" class="headerlink" title="4.1 Minor GC日志解析"></a>4.1 Minor GC日志解析</h3><p>根据上述分析，新生代大小为20g，Eden为16g，Survivor大小2g，老年代大小为130g<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line">[GC (Allocation Failure) 2016-11-04T16:12:57.274+0800: 11243291.242: </div><div class="line">[ParNew: 16831941K-&gt;60946K(18874368K), 0.1122703 secs] </div><div class="line">126061168K-&gt;109291366K(155189248K), 0.1126967 secs] </div><div class="line">[Times: user=1.09 sys=0.00, real=0.11 secs]</div><div class="line"></div><div class="line">[GC (Allocation Failure) 2016-09-06T17:55:38.334+0800: 6151960.699: </div><div class="line">[ParNew: 16844397K-&gt;85085K(18874368K), 0.1314400 secs] </div><div class="line">116885867K-&gt;100127390K(155189248K), 0.1318411 secs] </div><div class="line">[Times: user=1.29 sys=0.01, real=0.13 secs]</div></pre></td></tr></table></figure></p>
+<p>新生代与CMS配套的GC算法为多线程ParNew或者单线程DefNew。</p>
+<ol>
+<li><p><code>[ParNew: 16844397K-&gt;85085K(18874368K), 0.1314400 secs]</code><br>其中，<code>16844397K</code>表示GC前的新生代占用量，<code>85085K</code>表示GC后的新生代占用量，GC后Eden和一个Survivor为空，所以<code>85085K</code>也是另一个Survivor的占用量。括号中的<code>18874368K</code>是Eden+一个被占用Survivor的总和（18g）。<code>0.1122703 secs</code>是新生代回收不可达对象的时间。</p>
+<blockquote>
+<p>可以看到每次ParNew GC后，基本对象都会被回收或者晋升，只剩下85085K=83M的数据</p>
+</blockquote>
+</li>
+<li><p><code>116885867K-&gt;100127390K(155189248K), 0.1318411 secs]</code><br>其中，分别是Java堆在垃圾回收前后的大小，和Java堆大小。说明堆使用为116885867K=111.47g，回收大小为100127390K=95.49g，堆大小为155189248K=148g（去掉其中一个Survivor），回收了16g空间，耗时0.13秒。</p>
+<blockquote>
+<p><strong>从而可以推算老年代大小为148g-18g=130g，与上述参数一致。老年代使用大小为95.49g-85085K=95.41g，使用率73.4%</strong>。</p>
+</blockquote>
+</li>
+<li><p><code>[Times: user=1.29 sys=0.01, real=0.13 secs]</code><br>其中，时间=新生代垃圾收集+对象提升到老年代+垃圾清理。user指的是GC消耗的用户态度CPU时间，sys是内核态CPU时间，real指的是从开始到结束的时间计时。real包含了在GC过程中，IO或线程阻塞等待耗时。而user是CPU计算时间，在多核时通常会高于real时间。</p>
+</li>
+</ol>
+<h3 id="4-2-CMS-GC日志解析"><a href="#4-2-CMS-GC日志解析" class="headerlink" title="4.2 CMS GC日志解析"></a>4.2 CMS GC日志解析</h3><p>利用工具分析的结果(请把本项目git clone到本地再打开文件):<br><a href="docs/GC Easy - Universal Garbage Collection Log Analyzer.htm">GCLog分析</a></p>
+<h3 id="4-3-GC-日志相关参数"><a href="#4-3-GC-日志相关参数" class="headerlink" title="4.3 GC 日志相关参数"></a>4.3 GC 日志相关参数</h3><p>详见文献[9]</p>
+<h3 id="4-4-GC-日志抽取指标-未完成"><a href="#4-4-GC-日志抽取指标-未完成" class="headerlink" title="4.4 GC 日志抽取指标(未完成)"></a>4.4 GC 日志抽取指标(未完成)</h3><ol>
+<li>吞吐率=(程序运行时间-GC停顿时间)/程序运行时间1</li>
+<li>Old区域常驻内存使用率: 定义在CMS GC的sweep后,old区域的内存使用率</li>
+<li>对象晋升率:定义为ParNew GC前后,Old区域内存使用差值</li>
+<li>。。。</li>
+</ol>
+<h2 id="5-GC原理"><a href="#5-GC原理" class="headerlink" title="5. GC原理"></a>5. GC原理</h2><h3 id="5-1-Minor-GC的触发条件"><a href="#5-1-Minor-GC的触发条件" class="headerlink" title="5.1 Minor GC的触发条件"></a>5.1 Minor GC的触发条件</h3><h3 id="5-2-CMS-GC的触发条件"><a href="#5-2-CMS-GC的触发条件" class="headerlink" title="5.2 CMS GC的触发条件"></a>5.2 CMS GC的触发条件</h3><h3 id="5-3-CMS-Full-GC的触发条件"><a href="#5-3-CMS-Full-GC的触发条件" class="headerlink" title="5.3 CMS Full GC的触发条件"></a>5.3 CMS Full GC的触发条件</h3><p>主要指的是由于某种原因CMS GS退化为<code>单线程的Old区域压缩GC</code>(Serial Old GC),极其耗时,一旦发生,服务即不可用。</p>
+<ul>
+<li><code>System.gc()</code></li>
+<li>当永生代(Perm Gen)/老年代(Old Gen)/Metaspace(Java 8)使用比例100%时候</li>
+<li>老生代碎片过大无法分配空间给晋升的对象,引发<code>concurrent mode failure</code>错误</li>
+</ul>
+<h2 id="6-TODO工作"><a href="#6-TODO工作" class="headerlink" title="6. TODO工作"></a>6. TODO工作</h2><ul>
+<li>GC分析程序,接入监控。</li>
+<li>调研新的低延迟GC策略G1。</li>
+<li>如何用指标来度量GC的严重程度。</li>
+<li>提升服务吞吐量和降低延迟是否可以兼得？</li>
+</ul>
+<h2 id="7-Reference"><a href="#7-Reference" class="headerlink" title="7. Reference"></a>7. Reference</h2><ol>
+<li><a href="http://calvin1978.blogcn.com/articles/jvmoption-2.html" target="_blank" rel="external">JVM调优建议</a></li>
+<li><a href="https://community.hortonworks.com/articles/14170/namenode-garbage-collection-configuration-best-pra.html" target="_blank" rel="external">NameNode Garbage Collection Configuration: Best Practices and Rationale</a></li>
+<li><a href="http://tech.meituan.com/namenode.html" target="_blank" rel="external">Namenode内存分析-1</a></li>
+<li><a href="http://tech.meituan.com/namenode-memory-detail.html" target="_blank" rel="external">Namenode内存分析-2</a></li>
+<li><a href="http://dcm.didichuxing.com/cluster/index#/HDFSmonitor?_k=3i1bq1" target="_blank" rel="external">DCM HDFS文件数监控</a></li>
+<li><a href="http://dcm.didichuxing.com/cluster/index#/HDFSmonitor?_k=3i1bq1" target="_blank" rel="external">DCM HDFS文件和存储监控页面</a></li>
+<li><a href="">Java SE 6 HotSpot[tm] Virtual Machine Garbage Collection Tuning</a></li>
+<li><a href="https://blogs.oracle.com/poonam/entry/about_g1_garbage_collector_permanent" target="_blank" rel="external">JDK8: Metaspace</a></li>
+<li><a href="http://ifeve.com/useful-jvm-flags-part-8-gc-logging/" target="_blank" rel="external">JVM实用参数（八）GC日志</a></li>
+<li>Java性能优化权威指南</li>
+</ol>
+
+      
+    </div>
+
+  </div>
+
+  <div class="article-footer">
+    <div class="article-meta pull-left">
+
+    
+      
+
+    <span class="post-categories">
+      <i class="icon-categories"></i>
+        <a href="/categories/Hadoop/">Hadoop</a>, <a href="/categories/Hadoop/JVM/">JVM</a>
+    </span>
+    
+
+    
+    
+
+    <span class="post-tags">
+      <i class="icon-tags"></i>
+        <a href="/tags/Hadoop/">Hadoop</a><a href="/tags/Namenode/">Namenode</a><a href="/tags/JVM/">JVM</a>
+    </span>
+    
+
+    </div>
+
+    
+  </div>
+</article>
+
+
+    </main>
+
+    <footer class="site-footer">
+  <p class="site-info">
+    Proudly powered by <a href="https://hexo.io/" target="_blank">Hexo</a> and
+    Theme by <a href="https://github.com/CodeDaraW/Hacker" target="_blank">Hacker</a>
+    </br>
+    
+    &copy; 2017 Wang Haihua
+    
+  </p>
+</footer>
+    
+  </div>
+</div>
+</body>
+</html>

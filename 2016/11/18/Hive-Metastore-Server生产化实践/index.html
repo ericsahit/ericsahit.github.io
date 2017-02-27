@@ -1,0 +1,295 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  <title>Hive Metastore Server生产化实践 | Haihua&#39;s blog | Live hard or Die hard</title>
+
+  
+  <meta name="author" content="Wang Haihua">
+  
+
+  
+  <meta name="description" content="学习总结 思考感悟 知识总结">
+  
+
+  
+  
+  <meta name="keywords" content="Hive,Benchmarking">
+  
+
+  <meta id="viewport" name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+  <meta property="og:title" content="Hive Metastore Server生产化实践"/>
+
+  <meta property="og:site_name" content="Haihua&#39;s blog"/>
+
+  
+  <meta property="og:image" content="/favicon.ico"/>
+  
+
+  <link href="/favicon.ico" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="Haihua&#39;s blog" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+</head>
+
+
+<body>
+<div class="blog">
+  <div class="content">
+
+    <header>
+  <div class="site-branding">
+    <h1 class="site-title">
+      <a href="/">Haihua&#39;s blog</a>
+    </h1>
+    <p class="site-description">Live hard or Die hard</p>
+  </div>
+  <nav class="site-navigation">
+    <ul>
+      
+        <li><a href="/">主页</a></li>
+      
+        <li><a href="/archives">归档</a></li>
+      
+    </ul>
+  </nav>
+</header>
+
+    <main class="site-main posts-loop">
+    <article>
+
+  
+    
+    <h3 class="article-title"><span>Hive Metastore Server生产化实践</span></h3>
+    
+  
+
+  <div class="article-top-meta">
+    <span class="posted-on">
+      <a href="/2016/11/18/Hive-Metastore-Server生产化实践/" rel="bookmark">
+        <time class="entry-date published" datetime="2016-11-17T16:09:14.000Z">
+          2016-11-18
+        </time>
+      </a>
+    </span>
+  </div>
+
+
+  
+
+  <div class="article-content">
+    <div class="entry">
+      
+        <p>Hive Metastore保存了公司级别的核心元数据信息,所以其稳定性和高可用需求强烈。</p>
+<p>如果Hive/Spark/客户端都使用<code>直连MySQL访问</code>方式,那么有诸多缺点:</p>
+<ul>
+<li>Metastore稳定性无法保证。</li>
+<li>无法实现Hive审计日志。</li>
+<li>无法实现Hive集中权限控制。</li>
+</ul>
+<p>所以对于公司生产环境,强烈建议将Hive Metastore服务化,通过多台的<code>Hive Metastore Server</code>(以下简称MServer)来实现Metastore的高可用服务。</p>
+<p>以下内容包含MServer性能测试、MServer内存调优、MServer参数调优和MServer运维与监控等内容。</p>
+<h1 id="1-MServer测试"><a href="#1-MServer测试" class="headerlink" title="1 MServer测试"></a>1 MServer测试</h1><h2 id="1-1-测试环境"><a href="#1-1-测试环境" class="headerlink" title="1.1 测试环境"></a>1.1 测试环境</h2><p>硬件配置: 24 CPU Core/64G memory/10GB bandwidth Network</p>
+<h3 id="1-1-1-MServer-JVM启动参数"><a href="#1-1-1-MServer-JVM启动参数" class="headerlink" title="1.1.1 MServer JVM启动参数:"></a>1.1.1 MServer JVM启动参数:</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">-XX:+PrintCommandLineFlags </div><div class="line">-Xms12g -Xmx12g -XX:MetaspaceSize=128m </div><div class="line">-XX:+UseParNewGC -XX:+UseConcMarkSweepGC -XX:CMSInitiatingOccupancyFraction=75 -XX:+UseCMSInitiatingOccupancyOnly </div><div class="line">-verbose:gc -XX:+PrintGCDetails -XX:+PrintTenuringDistribution -XX:+PrintGCApplicationStoppedTime -XX:+PrintPromotionFailure -XX:+PrintGCDateStamps </div><div class="line">-XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=2 -XX:GCLogFileSize=512M -Xloggc:/dev/shm/gc-metastore.log</div></pre></td></tr></table></figure>
+<h3 id="1-1-2-MServer关键参数默认值"><a href="#1-1-2-MServer关键参数默认值" class="headerlink" title="1.1.2 MServer关键参数默认值"></a>1.1.2 MServer关键参数默认值</h3><ul>
+<li>最大数据库连接池连接数200</li>
+<li>处理线程数量最小200,最大2000</li>
+</ul>
+<h2 id="1-2-测试负载"><a href="#1-2-测试负载" class="headerlink" title="1.2 测试负载"></a>1.2 测试负载</h2><p>模拟多个客户端,对MServer线性不同的进行请求操作。</p>
+<p>请求操作有以下三种:</p>
+<ul>
+<li><code>show tables</code>: 查询一个库中的所有表操作,数据量少。</li>
+<li><code>show partitions by filter</code>: 按照筛选条件查询一个表下的分区信息,在select表时候使用,具体逻辑由多条SQL组成,回发数据量较多。</li>
+<li><code>create table &amp; drop table</code>: 建表和删表操作,涉及到数据库读写操作,HDFS路径建立。</li>
+<li><code>getconf</code>: 读取MServer配置,不与数据库进行交互,用来测试Thrift Server的最大处理能力。 </li>
+<li>以上三种操作的混合,按照50%,40%,10%的比例进行混合。</li>
+</ul>
+<h2 id="1-3-测试指标"><a href="#1-3-测试指标" class="headerlink" title="1.3 测试指标"></a>1.3 测试指标</h2><ol>
+<li><code>请求平均响应时间</code>: 客户端请求的平均响应时间。</li>
+<li><code>QPS</code>: 测试MServer的最大并发处理能力。</li>
+</ol>
+<h2 id="1-4-基本能力测试"><a href="#1-4-基本能力测试" class="headerlink" title="1.4 基本能力测试"></a>1.4 基本能力测试</h2><p>目标是测试MServer最大处理能力,和在不同配置下的性能表现。</p>
+<p>测试变动因素的有Server最大数据库连接数,测试操作,并发请求量。</p>
+<h3 id="1-4-1-不同并发请求量"><a href="#1-4-1-不同并发请求量" class="headerlink" title="1.4.1 不同并发请求量"></a>1.4.1 不同并发请求量</h3><p><img src="/images/QPS-200-showtables.png" alt="QPS-200-showtables"></p>
+<p>可以看大MServer在25个客户端并发下达到最大QPS达到<strong>8154</strong>,在100个客户端下平均请求响应时间13.17ms,之后上升较快。</p>
+<blockquote>
+<p>注意: 这里的客户端不是普通的一个Hive客户端,因为其不间断的在对MServer进行请求。</p>
+</blockquote>
+<h3 id="1-4-2-不同MServer数据库最大连接数条件下的测试"><a href="#1-4-2-不同MServer数据库最大连接数条件下的测试" class="headerlink" title="1.4.2 不同MServer数据库最大连接数条件下的测试"></a>1.4.2 不同MServer数据库最大连接数条件下的测试</h3><ul>
+<li>最大数据库连接200</li>
+</ul>
+<p>如前图结果所示。</p>
+<ul>
+<li>最大数据库连接数400</li>
+</ul>
+<p><img src="/images/QPS-400-showtables.png" alt="QPS-400-showtables"></p>
+<p>可以看大MServer最大QPS达到<strong>8395</strong>,在100个客户端下平均请求响应时间为12.48ms,之后上升较快。</p>
+<ul>
+<li>最大数据库连接100</li>
+</ul>
+<p>最大QPS在于7200左右。</p>
+<blockquote>
+<p>与最大连接数200相比,增加到400对于QPS和平均响应时间的提升效果不明显,<br>所以分析响应瓶颈在于MServer操作的逻辑;或在于数据库的处理能力,虽然连接数增多,但是处理能力却不能得到提升。</p>
+</blockquote>
+<h3 id="1-4-3-不同请求操作类型条件下的测试"><a href="#1-4-3-不同请求操作类型条件下的测试" class="headerlink" title="1.4.3 不同请求操作类型条件下的测试"></a>1.4.3 不同请求操作类型条件下的测试</h3><ul>
+<li><code>show tables</code></li>
+</ul>
+<p>测试结果如前所述,最大QPS达到8395。</p>
+<ul>
+<li><code>getConf</code></li>
+</ul>
+<p><img src="/images/QPS-2000-getconf.png" alt="QPS-2000-getconf"></p>
+<p>可以看到最大QPS达到31005,相比访问数据库的show tables操作的8395QPS,处理能力很大提升。</p>
+<p>另外启动两个MServer实例,分别进行压力测试,两个MServer的QPS平均每个在4000左右,</p>
+<p>通过上述线程认为<strong>数据库处理能力</strong>是制约MServer处理能力的主要因素,但是<strong>数据库连接数</strong>对增加数据库处理能力作用有限。</p>
+<ul>
+<li><code>create table &amp; Drop table</code></li>
+</ul>
+<p><img src="/images/QPS-200-createtable.png" alt="QPS-200-createtable"></p>
+<p>因为涉及到数据库写操作,和HDFS路径建立操作,平均QPS为157。</p>
+<ul>
+<li><code>show partitions by filter</code></li>
+</ul>
+<p>查询数据量较多时(255个partition),在测试时候会造成MySQL的System CPU使用率达到30%+。改变参数,降低获取的数据量后,System CPU使用会恢复正常。<br>这个现象还需要继续测试查找原因。</p>
+<ul>
+<li>混合操作</li>
+</ul>
+<p>最大QPS为416。</p>
+<h2 id="1-5-稳定性测试"><a href="#1-5-稳定性测试" class="headerlink" title="1.5 稳定性测试"></a>1.5 稳定性测试</h2><p>连续压测20个小时,QPS能够保持<strong>稳定</strong>,CPU400%~600%左右,GC无异常,内存使用最大使用2g。</p>
+<h2 id="1-6-测试总结"><a href="#1-6-测试总结" class="headerlink" title="1.6 测试总结"></a>1.6 测试总结</h2><ol>
+<li>数据库连接数对于性能的提升<strong>不明显</strong>,在MServer的处理能力提升不明显。MServer部署不需要特别多的数据库连接。</li>
+<li><strong>数据库处理能力</strong>是制约MServer处理能力的主要因素,但是<strong>数据库连接数</strong>对增加数据库处理能力作用有限</li>
+<li>MServer具有一定的稳定性。</li>
+<li>MServer在压测时候<code>CPU</code>和<code>Memory</code>使用率都很低,<code>Network</code>使用也不多,不是资源高消耗应用,TCP连接数最大可以达到worker数量。</li>
+</ol>
+<h1 id="2-MServer部署"><a href="#2-MServer部署" class="headerlink" title="2 MServer部署"></a>2 MServer部署</h1><h2 id="2-1-MServer启动参数设置"><a href="#2-1-MServer启动参数设置" class="headerlink" title="2.1 MServer启动参数设置"></a>2.1 MServer启动参数设置</h2><p>需要在<code>${HIVE_HOME}\conf\hive-env.sh</code>中增加:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div></pre></td><td class="code"><pre><div class="line"></div><div class="line"># 将gclog设置到内存文件中 -Xloggc:/dev/shm/gc-metastore.log</div><div class="line"># 如果内存吃紧,可以设置Thrift Server的最大worker数量,并且设置-Xss128k,因为MServer每个线程的处理工作并不复杂,迭代并不深。</div><div class="line">if [ &quot;$SERVICE&quot; = &quot;metastore&quot; ]; then</div><div class="line">  if [ -z &quot;$DEBUG&quot; ]; then</div><div class="line">    export HIVE_METASTORE_HADOOP_OPTS=&quot; -XX:+PrintCommandLineFlags -Xms12g -Xmx12g -XX:MetaspaceSize=128m -XX:+UseParNewGC -XX:+UseConcMarkSweepGC -XX:CMSInitiatingOccupancyFraction=75 -XX:+UseCMSInitiatingOccupancyOnly -verbose:gc -XX:+PrintGCDetails -XX:+PrintTenuringDistribution -XX:+PrintGCApplicationStoppedTime -XX:+PrintPromotionFailure -XX:+PrintGCDateStamps -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=2 -XX:GCLogFileSize=512M -Xloggc:/dev/shm/gc-metastore.log&quot;</div><div class="line">  else</div><div class="line">    export HIVE_METASTORE_HADOOP_OPTS=&quot; -XX:+PrintCommandLineFlags -Xms12g -Xmx12g -XX:MetaspaceSize=128m -XX:+UseParNewGC -XX:+UseConcMarkSweepGC -XX:CMSInitiatingOccupancyFraction=75 -XX:+UseCMSInitiatingOccupancyOnly -verbose:gc -XX:+PrintGCDetails -XX:+PrintTenuringDistribution -XX:+PrintGCApplicationStoppedTime -XX:+PrintPromotionFailure -XX:+PrintGCDateStamps -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=2 -XX:GCLogFileSize=512M -Xloggc:/dev/shm/gc-metastore.log&quot;</div><div class="line">  fi</div><div class="line">  # 修改Metastore Server内存必须设置,否则会被hadoop里设置的512MB覆盖</div><div class="line">  # Must set -Xmx because memory is hardcoding to 512MB in $&#123;HADOOP_HOME&#125;/etc/hadoop/hadoop-env.sh</div><div class="line">  export HADOOP_CLIENT_OPTS=&quot; -Xmx12g -Xss512k $HADOOP_CLIENT_OPTS&quot;</div><div class="line">fi</div></pre></td></tr></table></figure>
+<p>这里GC使用常见的CMS+ParNew GC, 并且滚动打印GC log。</p>
+<h2 id="2-2-MServer的关键性能参数"><a href="#2-2-MServer的关键性能参数" class="headerlink" title="2.2 MServer的关键性能参数"></a>2.2 MServer的关键性能参数</h2><ul>
+<li><p><code>hive.metastore.server.max.threads</code><br>Thrift Server工作线程的最大数量。默认是100000,但是一般设置为2000~4000。<br>如果并发瞬时请求大于这个配置,客户端会直接报连接错误,所以应该满足<code>MServer instance * hive.metastore.server.max.threads &gt; Max of Hive client at same time</code></p>
+</li>
+<li><p><code>hive.metastore.server.min.threads</code><br>Thrift Server工作线程的最小数量,默认为20。MServer使用了Thrift Server中的<code>ThreadPoolServer</code>方式作为Server工作调度器。</p>
+</li>
+<li><p><code>datanucleus.connectionPool.maxPoolSize</code><br>设置MServer的数据库连接池最大连接数。</p>
+</li>
+</ul>
+<p>MServer的一个很大作用也在于复用本来独立于各个Client的数据库连接, 大大降低了后端数据库的连接数。<br>每个MySQL Server实例的支持最大连接大概是4000,如果每个Hive客户端都去连接的时候,很容易打满连接,造成数据库<code>too many connections</code>错误</p>
+<p>跟数据库的处理能力有关系,在测试中发现这个配置从200提高到400,MServer的处理能力并没有更多提升。</p>
+<ul>
+<li><code>hive.hmshandler.retry.attempts</code></li>
+<li><code>hive.hmshandler.retry.interval</code><br>以上两个参数MServer在连接元数据库连接失败时候的重试次数和重试间隔。默认是10次,2s。当元数据库不稳定时候可以增加。</li>
+</ul>
+<p>测试和观察MServer的log,发现在MServer在遇到HDFS读写异常(没有权限/Trash满等原因造成)时候,并不会重试,直接给客户端返回错误信息。li<br>当遇到<code>JDOException</code>和<code>NucleusException</code>等数据库连接错误时候,会进行重试机制。</p>
+<ul>
+<li><code>hive.metastore.server.max.message.size</code><br>MServer与客户端传输消息的最大值。默认是200MB,一般够用,如果遇到奇葩错误,可以调大。</li>
+</ul>
+<h2 id="2-3-客户端相关参数"><a href="#2-3-客户端相关参数" class="headerlink" title="2.3 客户端相关参数"></a>2.3 客户端相关参数</h2><ul>
+<li><code>hive.metastore.local</code></li>
+</ul>
+<p>使用远程MServer设置为false。</p>
+<ul>
+<li><code>hive.metastore.uris</code></li>
+</ul>
+<p>设置为MServer地址,多个MServer实例使用逗号分隔,注意地址一定要符合URI的RFC规范,是<code>thrift://hostname:port</code>这样的形式。</p>
+<ul>
+<li><p><code>hiv.metastore.connect.retries</code><br>客户端在连接MServer失败时候的重试次数,默认为3。</p>
+</li>
+<li><p><code>hive.metastore.client.connect.retry.delay</code></p>
+</li>
+</ul>
+<p>客户端在重试连接MServer时候的重试间隔,默认为1s。建议设置为5s~25s,我们集群设置为6s。</p>
+<p>以上两个参数是Hive客户端在启动尝试连接MServer时候的相关参数。<br>另外一个比较重要的参数是查询过程中MServer出错,自动尝试到另一个MServer上去查询的参数:</p>
+<ul>
+<li><code>hive.metastore.failure.retries</code></li>
+</ul>
+<p>客户端在连接MServer进行查询时候出错的重试次数,默认为1。</p>
+<p>上述三个是客户端连接MServer的<code>高可用</code>相关参数。</p>
+<p>查询失败的原因可以总结为: </p>
+<ol>
+<li><p>MServer实例重启,这个在MServer配置变更和服务升级时候会发生。</p>
+</li>
+<li><p>MServer实例异常。主要为无响应,或者依赖的元数据库响应异常。</p>
+<blockquote>
+<p>当依赖的元数据库异常时候,MServer如上面所述会采取重试机制,而此时客户端并不会重试,会hang住等MServer进行重试返回结果。</p>
+</blockquote>
+</li>
+<li><p>客户端请求异常。<br>目前经过分析MServer的运行log,只发现一个case,<br>是在删除内部表操作时候,删除<code>用户目录外的HDFS数据</code>到<code>用户目录下Trash</code>如果权限不足(用户根本没有申请到用户目录权限),<br>或者<code>用户目录配额满</code>的时候会引发MServer删除表异常。通过构造这种场景测试测试和代码验证,发现客户端并不会重试。</p>
+</li>
+</ol>
+<p>上述三种情况,只有当第一种原因发生(客户端异常为<code>传输异常(TApplication|TProtocol|TTransport等)</code>)时,客户端会采取重连措施。</p>
+<p>综上所述,为了防止第一种情况的发生,增加连接MServer时候的高可用特性,建议增加重试次数。</p>
+<p>参考<a href="https://www.ibm.com/support/knowledgecenter/SSPT3X_4.1.0/com.ibm.swg.im.infosphere.biginsights.admin.doc/doc/admin_HA_Hivem.html" target="_blank" rel="external">IBM Enabling Hive metastore high availability</a><br>中的配置,并结合集群情况,将重试次数设置为<code>25</code>,重试间隔设置为<code>6s</code>,这样将会允许客户端有<code>150s的重连缓冲时间</code>。<br>MServer作为一个高可用服务,如果150s内不能恢复服务,那么客户端直接报错。</p>
+<ul>
+<li><code>hive.metastore.client.socket.lifetime</code><br>客户端在进行某一个查询,超过多长时间就会进行选择另一个MServer重试。默认为0s,配置文件一般设置为600s。</li>
+</ul>
+<h2 id="2-4-Hive-auditlog配置参数"><a href="#2-4-Hive-auditlog配置参数" class="headerlink" title="2.4 Hive auditlog配置参数"></a>2.4 Hive auditlog配置参数</h2><p>通过metastore回收元数据访问权限,顺便可以打开Hive的元数据audit log功能,进一步可以做一些Hive表冷热分析,HDFS数据访问频率分析等额外工作。<br>打开Audit log并输出到单独文件,需要修改的是<code>${HIVE_HOME}\conf\hive-log4j.properties</code>文件:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line">#hive audit logging</div><div class="line"></div><div class="line">log4j.logger.org.apache.hadoop.hive.metastore.HiveMetaStore.audit=INFO,audit</div><div class="line">log4j.additivity.org.apache.hadoop.hive.metastore.HiveMetaStore.audit=false</div><div class="line">log4j.appender.audit=org.apache.log4j.DailyRollingFileAppender</div><div class="line">log4j.appender.audit.File=$&#123;hive.log.dir&#125;/audit.log</div><div class="line">log4j.appender.audit.Append=false </div><div class="line">log4j.appender.audit.layout=org.apache.log4j.PatternLayout</div><div class="line">log4j.appender.audit.layout.ConversionPattern=[%d&#123;yy-MM-dd HH:mm:ss:SSS&#125;][%C-%M] -%m%n</div><div class="line">log4j.appender.audit.BufferedIO=true</div><div class="line">log4j.appender.audit.BufferSize=8192</div><div class="line">log4j.appender.audit.DatePattern=.yyyy-MM-dd-HH</div></pre></td></tr></table></figure>
+<h1 id="3-Metastore运维与监控"><a href="#3-Metastore运维与监控" class="headerlink" title="3. Metastore运维与监控"></a>3. Metastore运维与监控</h1><h2 id="3-1-外部监控系统"><a href="#3-1-外部监控系统" class="headerlink" title="3.1 外部监控系统"></a>3.1 外部监控系统</h2><p>可以使用<code>Ganglia</code>和<code>Zabbix</code>等监控系统</p>
+<h2 id="3-2-监控指标"><a href="#3-2-监控指标" class="headerlink" title="3.2 监控指标"></a>3.2 监控指标</h2><h3 id="3-2-1-节点监控指标"><a href="#3-2-1-节点监控指标" class="headerlink" title="3.2.1 节点监控指标"></a>3.2.1 节点监控指标</h3><p>包含一些机器常用指标,包含CPU/Memory/DiskIO/NetworkIO等。测试过程中发现MServer的负载很低,需要关注的主要是<code>NetworkIO</code>和<code>TCP connection</code>两个指标。</p>
+<h3 id="3-2-2-进程监控指标"><a href="#3-2-2-进程监控指标" class="headerlink" title="3.2.2 进程监控指标"></a>3.2.2 进程监控指标</h3><p>监控进程是否存在。</p>
+<h3 id="3-2-3-MServer负载监控指标"><a href="#3-2-3-MServer负载监控指标" class="headerlink" title="3.2.3 MServer负载监控指标"></a>3.2.3 MServer负载监控指标</h3><p>设每个MServer的工作线程最大为MaxWorker，每个客户端与Server连接之后会使用一个TCP连接，<br>可以用<code>Server的TCP连接</code>来作为表征<code>Server负载</code>的指标。<br>可以设置每台机器的Server TCP连接数大于门限（例如90%）则进行告警。然后触发扩容等措施。</p>
+<h3 id="3-2-4-应用级别监控指标"><a href="#3-2-4-应用级别监控指标" class="headerlink" title="3.2.4 应用级别监控指标"></a>3.2.4 应用级别监控指标</h3><p>引入社区的Hive Metrics机制。</p>
+<h1 id="4-待补充工作"><a href="#4-待补充工作" class="headerlink" title="4 待补充工作"></a>4 待补充工作</h1><ol>
+<li>MServer Metrics收集,监控和告警。</li>
+<li>MySQL System CPU使用率在压力测试请求频繁条件下超高问题。</li>
+<li>通过Metrics收集真实的请求量分布,便于在运维时候提前增加Server数量,应对请求高峰。</li>
+<li>MServer Cache机制。</li>
+</ol>
+<h1 id="5-Reference"><a href="#5-Reference" class="headerlink" title="5 Reference"></a>5 Reference</h1><ul>
+<li><a href="https://www.ibm.com/support/knowledgecenter/SSPT3X_4.1.0/com.ibm.swg.im.infosphere.biginsights.admin.doc/doc/admin_HA_Hivem.html" target="_blank" rel="external">IBM Enabling Hive metastore high availability</a></li>
+<li></li>
+</ul>
+
+      
+    </div>
+
+  </div>
+
+  <div class="article-footer">
+    <div class="article-meta pull-left">
+
+    
+      
+
+    <span class="post-categories">
+      <i class="icon-categories"></i>
+        <a href="/categories/Hive/">Hive</a>, <a href="/categories/Hive/Hadoop/">Hadoop</a>
+    </span>
+    
+
+    
+    
+
+    <span class="post-tags">
+      <i class="icon-tags"></i>
+        <a href="/tags/Hive/">Hive</a><a href="/tags/Benchmarking/">Benchmarking</a>
+    </span>
+    
+
+    </div>
+
+    
+  </div>
+</article>
+
+
+    </main>
+
+    <footer class="site-footer">
+  <p class="site-info">
+    Proudly powered by <a href="https://hexo.io/" target="_blank">Hexo</a> and
+    Theme by <a href="https://github.com/CodeDaraW/Hacker" target="_blank">Hacker</a>
+    </br>
+    
+    &copy; 2017 Wang Haihua
+    
+  </p>
+</footer>
+    
+  </div>
+</div>
+</body>
+</html>
