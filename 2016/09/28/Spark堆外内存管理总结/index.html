@@ -1,0 +1,831 @@
+<!doctype html>
+
+
+
+  
+
+
+<html class="theme-next mist use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+  
+  
+  
+  
+
+  
+    
+    
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+    
+    <link href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&subset=latin,latin-ext" rel="stylesheet" type="text/css">
+  
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.0" rel="stylesheet" type="text/css" />
+
+
+  <meta name="keywords" content="Spark,MemoryManagement," />
+
+
+
+
+
+
+
+
+  <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico?v=5.1.0" />
+
+
+
+
+
+
+<meta name="description" content="现状目前spark1.6版本，只能实现Execution memory部分使用堆外内存，不能实现Storage memory存储RDD使用堆外内存。
+对于堆外内存的使用，目前非SQL类Spark应用使用较少，shuffle和aggregation等场景（具体使用需要跟踪下代码进行总结分类）下会使用到，因为其Schema信息相对于SQL的RDD较复杂，而SQL中的RDD数据均为简单类型数据，因此SQ">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Spark堆外内存管理总结">
+<meta property="og:url" content="http://yoursite.com/2016/09/28/Spark堆外内存管理总结/index.html">
+<meta property="og:site_name" content="Haihua's blog">
+<meta property="og:description" content="现状目前spark1.6版本，只能实现Execution memory部分使用堆外内存，不能实现Storage memory存储RDD使用堆外内存。
+对于堆外内存的使用，目前非SQL类Spark应用使用较少，shuffle和aggregation等场景（具体使用需要跟踪下代码进行总结分类）下会使用到，因为其Schema信息相对于SQL的RDD较复杂，而SQL中的RDD数据均为简单类型数据，因此SQ">
+<meta property="og:updated_time" content="2017-03-01T12:55:53.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Spark堆外内存管理总结">
+<meta name="twitter:description" content="现状目前spark1.6版本，只能实现Execution memory部分使用堆外内存，不能实现Storage memory存储RDD使用堆外内存。
+对于堆外内存的使用，目前非SQL类Spark应用使用较少，shuffle和aggregation等场景（具体使用需要跟踪下代码进行总结分类）下会使用到，因为其Schema信息相对于SQL的RDD较复杂，而SQL中的RDD数据均为简单类型数据，因此SQ">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    sidebar: {"position":"left","display":"post","offset":12,"offset_float":0,"b2t":false,"scrollpercent":false},
+    fancybox: true,
+    motion: true,
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: 'AOO7Y1PHIM',
+      apiKey: '57733267bb9cf8b734be8b6d7aebcd4b',
+      indexName: 'blog_index',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2016/09/28/Spark堆外内存管理总结/"/>
+
+
+
+
+
+  <title> Spark堆外内存管理总结 | Haihua's blog </title>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+
+
+
+
+
+  <script type="text/javascript">
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "https://hm.baidu.com/hm.js?43d332dfc506683a6b9f3c2374e511c5";
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+  </script>
+
+
+
+
+
+
+
+
+
+
+  
+  
+    
+  
+
+  <div class="container one-collumn sidebar-position-left page-post-detail ">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">Haihua's blog</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle">Live hard or Die hard</p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
+            
+            关于
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2016/09/28/Spark堆外内存管理总结/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Wang Haihua">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Haihua's blog">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+            
+            
+              
+                Spark堆外内存管理总结
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2016-09-28T14:25:00+08:00">
+                2016-09-28
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Spark/" itemprop="url" rel="index">
+                    <span itemprop="name">Spark</span>
+                  </a>
+                </span>
+
+                
+                
+                  ， 
+                
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Spark/Memory/" itemprop="url" rel="index">
+                    <span itemprop="name">Memory</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+              <span class="post-comments-count">
+                <span class="post-meta-divider">|</span>
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-comment-o"></i>
+                </span>
+                <a href="/2016/09/28/Spark堆外内存管理总结/#comments" itemprop="discussionUrl">
+                  <span class="post-comments-count ds-thread-count" data-thread-key="2016/09/28/Spark堆外内存管理总结/" itemprop="commentCount"></span>
+                </a>
+              </span>
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="现状"><a href="#现状" class="headerlink" title="现状"></a>现状</h2><p>目前spark1.6版本，只能实现Execution memory部分使用堆外内存，不能实现Storage memory存储RDD使用堆外内存。</p>
+<p>对于堆外内存的使用，目前非SQL类Spark应用使用较少，shuffle和aggregation等场景（<em>具体使用需要跟踪下代码进行总结分类</em>）下会使用到，因为其Schema信息相对于SQL的RDD较复杂，而SQL中的RDD数据均为简单类型数据，因此SQL类应用可以在join时候也使用到堆外内存，直接基于二进制的数据进行处理。</p>
+<p>目前对于堆外内存的支持还不完善，所以Spark在1.5中对于SQL默认开启堆外内存使用，而到1.6版本就默认开启，但<strong>是否默认使用非堆外内存还需要确认下</strong>。<br>对于非SQL类应用，使用总开关进行控制，<strong>默认关闭</strong>。</p>
+<h2 id="未来"><a href="#未来" class="headerlink" title="未来"></a>未来</h2><ol>
+<li>在Spark2.0时候会去掉对于Tachyon的支持，为使用自身的堆外存储做准备。</li>
+</ol>
+<p>原文参考：<a href="https://github.com/apache/spark/pull/10752" target="_blank" rel="external">https://github.com/apache/spark/pull/10752</a></p>
+<blockquote>
+<p>This pull request removes the external block store API. This is rarely used, and the file system interface is actually a better, more standard way to interact with external storage systems.</p>
+</blockquote>
+<ol>
+<li>在Spark2.x时候会实现RDD存储<code>OFF_HEP</code>级别使用自身的堆外存储机制。<strong>如果RDD存储需要使用堆外内存，则必须序列化</strong></li>
+</ol>
+<p>原文参考：<a href="https://github.com/apache/spark/pull/11805" target="_blank" rel="external">https://github.com/apache/spark/pull/11805</a></p>
+<blockquote>
+<p>Updated semantics of OFF_HEAP storage level: In Spark 1.x, the OFF_HEAP storage level indicated that an RDD should be cached in Tachyon. Spark 2.x removed the external block store API that Tachyon caching was based on (see #10752 / SPARK-12667), so OFF_HEAP became an alias for MEMORY_ONLY_SER. As of this patch, OFF_HEAP means “serialized and cached in off-heap memory or on disk”. Via the StorageLevel constructor, useOffHeap can be set if serialized == true and can be used to construct custom storage levels which support replication.</p>
+</blockquote>
+<h2 id="堆外内存相关设置参数"><a href="#堆外内存相关设置参数" class="headerlink" title="堆外内存相关设置参数"></a>堆外内存相关设置参数</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">spark.unsafe.offheap</div><div class="line">设置对于Execution memory是否开启offheap，默认关闭。只限于Exeution memory部分使用。</div><div class="line"></div><div class="line">spark.sql.unsafe.enabled</div><div class="line">设置对于SQL是否开启offheap，在1.5中新增，在1.6已经默认开启。</div></pre></td></tr></table></figure>
+<h2 id="内存请求量设置"><a href="#内存请求量设置" class="headerlink" title="内存请求量设置"></a>内存请求量设置</h2><h3 id="YARN-mode"><a href="#YARN-mode" class="headerlink" title="YARN mode"></a>YARN mode</h3><ol>
+<li><p>executorMemory：由<code>spark.executor.memory</code>参数决定，如果不存在则取环境变量里的<code>SPARK_EXECUTOR_MEMORY</code>， </p>
+</li>
+<li><p>overhead：由参数<code>spark.yarn.executor.memoryOverhead</code>来控制，如果没有设置则取<code>executorMemory * 0.1</code>，并且满足最小384MB。用来作为预留内存，为堆外、JVM管理（PermGen、Thread Stack等）等使用。</p>
+<ul>
+<li>预留内存：防止内存加堆外内存总和超过<code>executorMemory+overhead</code></li>
+<li>PermGen：永生代使用，</li>
+</ul>
+</li>
+<li>的</li>
+</ol>
+<p>YARN只负责Container的逻辑值在调度系统中的分配，并不关注Container实际内存的需求。</p>
+<h2 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h2><ol>
+<li><a href="https://databricks.com/blog/2015/04/28/project-tungsten-bringing-spark-closer-to-bare-metal.html" target="_blank" rel="external">tungsten计划介绍</a></li>
+<li><a href="https://issues.apache.org/jira/secure/attachment/12765646/unified-memory-management-spark-10000.pdf" target="_blank" rel="external">Spark统一内存管理设计文档</a></li>
+<li><a href="http://doc.mbalib.com/view/2492dd6afd2b7efe621d154bbc73a00e.html" target="_blank" rel="external">Tachyon最近介绍</a></li>
+<li><a href="http://spark.apache.org/docs/latest/tuning.html" target="_blank" rel="external">Spark1.6内存管理</a></li>
+<li><a href="https://0x0fff.com/spark-memory-management/" target="_blank" rel="external">统一内存管理介绍</a></li>
+</ol>
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/Spark/" rel="tag"># Spark</a>
+          
+            <a href="/tags/MemoryManagement/" rel="tag"># MemoryManagement</a>
+          
+        </div>
+      
+
+      
+        
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2016/08/01/HDFS配额总结/" rel="next" title="HDFS配额总结">
+                <i class="fa fa-chevron-left"></i> HDFS配额总结
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2016/11/10/Git命令使用总结/" rel="prev" title="Git命令使用总结">
+                Git命令使用总结 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </article>
+
+
+
+    <div class="post-spread">
+      
+        <div class="ds-share flat" data-thread-key="2016/09/28/Spark堆外内存管理总结/"
+     data-title="Spark堆外内存管理总结"
+     data-content=""
+     data-url="http://yoursite.com/2016/09/28/Spark堆外内存管理总结/">
+  <div class="ds-share-inline">
+    <ul  class="ds-share-icons-16">
+
+      <li data-toggle="ds-share-icons-more"><a class="ds-more" href="javascript:void(0);">分享到：</a></li>
+      <li><a class="ds-weibo" href="javascript:void(0);" data-service="weibo">微博</a></li>
+      <li><a class="ds-qzone" href="javascript:void(0);" data-service="qzone">QQ空间</a></li>
+      <li><a class="ds-qqt" href="javascript:void(0);" data-service="qqt">腾讯微博</a></li>
+      <li><a class="ds-wechat" href="javascript:void(0);" data-service="wechat">微信</a></li>
+
+    </ul>
+    <div class="ds-share-icons-more">
+    </div>
+  </div>
+</div>
+      
+    </div>
+  </div>
+
+          
+          </div>
+          
+
+
+          
+  <div class="comments" id="comments">
+    
+      <div class="ds-thread" data-thread-key="2016/09/28/Spark堆外内存管理总结/"
+           data-title="Spark堆外内存管理总结" data-url="http://yoursite.com/2016/09/28/Spark堆外内存管理总结/">
+      </div>
+    
+  </div>
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap" >
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+          <img class="site-author-image" itemprop="image"
+               src="/images/avatar.jpg"
+               alt="Wang Haihua" />
+          <p class="site-author-name" itemprop="name">Wang Haihua</p>
+           
+              <p class="site-description motion-element" itemprop="description">学习总结 思考感悟 知识总结</p>
+          
+        </div>
+        <nav class="site-state motion-element">
+        
+          
+            <div class="site-state-item site-state-posts">
+              <a href="/archives">
+                <span class="site-state-item-count">7</span>
+                <span class="site-state-item-name">日志</span>
+              </a>
+            </div>
+          
+
+          
+            <div class="site-state-item site-state-categories">
+              <a href="/categories">
+                <span class="site-state-item-count">12</span>
+                <span class="site-state-item-name">分类</span>
+              </a>
+            </div>
+          
+
+          
+            <div class="site-state-item site-state-tags">
+              <a href="/tags">
+                <span class="site-state-item-count">13</span>
+                <span class="site-state-item-name">标签</span>
+              </a>
+            </div>
+          
+
+        </nav>
+
+        
+
+        <div class="links-of-author motion-element">
+          
+            
+              <span class="links-of-author-item">
+                <a href="https://github.com/ericsahit" target="_blank" title="GitHub">
+                  
+                    <i class="fa fa-fw fa-github"></i>
+                  
+                  GitHub
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="https://www.zhihu.com/people/wang-hai-hua-96" target="_blank" title="Zhihu">
+                  
+                    <i class="fa fa-fw fa-globe"></i>
+                  
+                  Zhihu
+                </a>
+              </span>
+            
+          
+        </div>
+
+        
+        
+
+        
+        
+
+        
+
+
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#现状"><span class="nav-number">1.</span> <span class="nav-text">现状</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#未来"><span class="nav-number">2.</span> <span class="nav-text">未来</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#堆外内存相关设置参数"><span class="nav-number">3.</span> <span class="nav-text">堆外内存相关设置参数</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#内存请求量设置"><span class="nav-number">4.</span> <span class="nav-text">内存请求量设置</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#YARN-mode"><span class="nav-number">4.1.</span> <span class="nav-text">YARN mode</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#参考"><span class="nav-number">5.</span> <span class="nav-text">参考</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright" >
+  
+  &copy; 
+  <span itemprop="copyrightYear">2017</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Wang Haihua</span>
+</div>
+
+
+<div class="powered-by">
+  由 <a class="theme-link" href="https://hexo.io">Hexo</a> 强力驱动
+</div>
+
+<div class="theme-info">
+  主题 -
+  <a class="theme-link" href="https://github.com/iissnan/hexo-theme-next">
+    NexT.Mist
+  </a>
+</div>
+
+
+        
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+    
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+  <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+
+  
+  <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+
+  
+  <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.0"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.0"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.0"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.0"></script>
+
+
+
+  
+
+  
+    
+  
+
+  <script type="text/javascript">
+    var duoshuoQuery = {short_name:"titancc"};
+    (function() {
+      var ds = document.createElement('script');
+      ds.type = 'text/javascript';ds.async = true;
+      ds.id = 'duoshuo-script';
+      ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+      ds.charset = 'UTF-8';
+      (document.getElementsByTagName('head')[0]
+      || document.getElementsByTagName('body')[0]).appendChild(ds);
+    })();
+  </script>
+
+  
+    
+    
+    <script src="/lib/ua-parser-js/dist/ua-parser.min.js?v=0.7.9"></script>
+    <script src="/js/src/hook-duoshuo.js"></script>
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+
+  
+
+</body>
+</html>
