@@ -591,13 +591,13 @@
 <li><p>截止2016年12月22号14点,集群的文件和文件夹总数量为<code>293444427</code>,block数量为<code>348566581</code>,堆内存总大小为<code>148GB</code>,Old区大小为<code>130GB</code>,堆内存使用为<code>110GB~126GB</code>。 </p>
 <p>目前Namenode常驻内存(详细定义请参考<code>2.1</code>章节)使用为<code>110GB</code>,Old区使用率<code>84%</code>,即将突破<code>90%</code>,需要采取扩大内存(降低文件数量)等措施来规避<code>CMS GC降级为压缩式GC带来的漫长STW</code>风险。</p>
 </li>
-<li><p>依据DCM(我们的集群监控系统)数据,从12月1号到22号,集群文件数增长了<code>293444427 - 275847816=17596611</code>,大约1千7百万,常驻内存增长了<code>110GB - 103GB = 7GB</code>。<br>按照这个速度,<code>一个月</code>内堆内存常驻使用将会突破<code>90%</code>警戒线。</p>
+<li><p>依据我们的集群监控系统数据,从12月1号到22号,集群文件数增长了<code>293444427 - 275847816=17596611</code>,大约1千7百万,常驻内存增长了<code>110GB - 103GB = 7GB</code>。<br>按照这个速度,<code>一个月</code>内堆内存常驻使用将会突破<code>90%</code>警戒线。</p>
 </li>
 <li><p>如果堆内存加大到<code>180GB</code>,全部给Old区的话增加30GB可用内存,按照估算(估算方法参考<code>2.3</code>章节)可以容纳的文件数在<code>362804019</code>左右,还可以增长的文件数需要控制在<code>69359591</code>以内,大约7千万文件量。</p>
 </li>
 </ul>
 <h3 id="1-2-Namenode内存配置修改建议"><a href="#1-2-Namenode内存配置修改建议" class="headerlink" title="1.2 Namenode内存配置修改建议"></a>1.2 Namenode内存配置修改建议</h3><h4 id="1-2-1-提升堆内存大小，降低Old区使用比例，规避压缩式GC的STW风险。"><a href="#1-2-1-提升堆内存大小，降低Old区使用比例，规避压缩式GC的STW风险。" class="headerlink" title="1.2.1 提升堆内存大小，降低Old区使用比例，规避压缩式GC的STW风险。"></a>1.2.1 提升堆内存大小，降低Old区使用比例，规避压缩式GC的STW风险。</h4><p>从2016年8月份至今,老年代的最大使用曾经达到<code>122.25g(94%)</code>，目前使用<code>110g(84%)</code>，平均使用达到<code>116.1g（89%）</code>。<br>堆内存增加到180g后能容纳的文件数在<code>362804019</code>左右,增长的文件数需要控制在<code>69359591</code>以内,大约7千万文件量。</p>
-<p>目前Namenode常驻内存内存使用为<code>110GB</code>,Old区使用率<code>84%</code>,按照这个月的增长速度估算,一个月内堆内存使用将会突破<code>90%</code>警戒线。<br>依据DCM数据,从12月1号到22号,集群文件数从<code>275847816</code>增长到<code>293444427</code>大约增长了<code>1千7百万</code>,<br>堆内存常驻内存增长了从<code>103GB</code>增长到<code>110GB</code>,增长了<code>7GB</code>。</p>
+<p>目前Namenode常驻内存内存使用为<code>110GB</code>,Old区使用率<code>84%</code>,按照这个月的增长速度估算,一个月内堆内存使用将会突破<code>90%</code>警戒线。<br>依据监控系统数据,从12月1号到22号,集群文件数从<code>275847816</code>增长到<code>293444427</code>大约增长了<code>1千7百万</code>,<br>堆内存常驻内存增长了从<code>103GB</code>增长到<code>110GB</code>,增长了<code>7GB</code>。</p>
 <p>详细分析请参考<code>2. Name内存利用分析</code>章节。</p>
 <p>修改:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">-Xms180g -Xmx180g</div></pre></td></tr></table></figure></p>
 <h4 id="1-2-2-增加ParNew和CMS-GC使用的线程数量，目前是10，可以提升到18（24核下的默认值）。"><a href="#1-2-2-增加ParNew和CMS-GC使用的线程数量，目前是10，可以提升到18（24核下的默认值）。" class="headerlink" title="1.2.2 增加ParNew和CMS GC使用的线程数量，目前是10，可以提升到18（24核下的默认值）。"></a>1.2.2 增加ParNew和CMS GC使用的线程数量，目前是10，可以提升到18（24核下的默认值）。</h4><p>提升ParNew和CMS的GC效率，降低ParNew STW时间，<br>缓解在临时对象数量激增时发生ParNew GC频繁导致服务延迟增加，吞吐量降低问题。</p>
@@ -654,7 +654,7 @@
 <h3 id="2-3-内存分析结论"><a href="#2-3-内存分析结论" class="headerlink" title="2.3 内存分析结论"></a>2.3 内存分析结论</h3><ol>
 <li><p>目前Namenode常驻内存内存使用为<code>110GB</code>,Old区使用率<code>84%</code>,即将突破<code>90%</code>,需要采取扩大内存(降低文件数量)等措施来规避STW风险。</p>
 </li>
-<li><p>依据DCM数据,从12月1号到22号,集群文件数增长了<code>293444427 - 275847816=17596611</code>,大约1千7百万,堆内存常驻内存增长了<code>110GB - 103GB = 7GB</code>。</p>
+<li><p>依据监控系统数据,从12月1号到22号,集群文件数增长了<code>293444427 - 275847816=17596611</code>,大约1千7百万,堆内存常驻内存增长了<code>110GB - 103GB = 7GB</code>。</p>
 <blockquote>
 <p>按照这个速度,<code>一个月</code>内堆内存使用将会突破<code>90%</code>警戒线</p>
 </blockquote>
@@ -730,8 +730,8 @@
 <li><a href="https://community.hortonworks.com/articles/14170/namenode-garbage-collection-configuration-best-pra.html" target="_blank" rel="external">NameNode Garbage Collection Configuration: Best Practices and Rationale</a></li>
 <li><a href="http://tech.meituan.com/namenode.html" target="_blank" rel="external">Namenode内存分析-1</a></li>
 <li><a href="http://tech.meituan.com/namenode-memory-detail.html" target="_blank" rel="external">Namenode内存分析-2</a></li>
-<li>[DCM HDFS文件数监控]</li>
-<li>[DCM HDFS文件和存储监控页面]</li>
+<li>[HDFS文件数监控]</li>
+<li>[HDFS文件和存储监控页面]</li>
 <li><a href="">Java SE 6 HotSpot[tm] Virtual Machine Garbage Collection Tuning</a></li>
 <li><a href="https://blogs.oracle.com/poonam/entry/about_g1_garbage_collector_permanent" target="_blank" rel="external">JDK8: Metaspace</a></li>
 <li><a href="http://ifeve.com/useful-jvm-flags-part-8-gc-logging/" target="_blank" rel="external">JVM实用参数（八）GC日志</a></li>
