@@ -280,187 +280,6 @@
   
 
   <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/02/28/Spark集群自动部署脚本/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="Wang Haihua">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/avatar.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Haihua's blog">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-            
-            
-              
-                
-                <a class="post-title-link" href="/2017/02/28/Spark集群自动部署脚本/" itemprop="url">
-                  Spark集群自动部署脚本
-                </a>
-              
-            
-          </h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-02-28T00:43:00+08:00">
-                2017-02-28
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-            <span class="post-category" >
-            
-              <span class="post-meta-divider">|</span>
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-folder-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">分类于</span>
-              
-              
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Spark/" itemprop="url" rel="index">
-                    <span itemprop="name">Spark</span>
-                  </a>
-                </span>
-
-                
-                
-                  ， 
-                
-              
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Spark/大数据平台/" itemprop="url" rel="index">
-                    <span itemprop="name">大数据平台</span>
-                  </a>
-                </span>
-
-                
-                
-              
-            </span>
-          
-
-       <span id="busuanzi_container_page_pv">
-       &nbsp; | &nbsp; 热度&nbsp; <span id="busuanzi_value_page_pv"></span>°C
-       </span>
-
-
-          
-            
-              <span class="post-comments-count">
-                <span class="post-meta-divider">|</span>
-                <span class="post-meta-item-icon">
-                  <i class="fa fa-comment-o"></i>
-                </span>
-                <a href="/2017/02/28/Spark集群自动部署脚本/#comments" itemprop="discussionUrl">
-                  <span class="post-comments-count ds-thread-count" data-thread-key="2017/02/28/Spark集群自动部署脚本/" itemprop="commentCount"></span>
-                </a>
-              </span>
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>最近需要进行Spark多节点的部署和切换，以及日志收集和统计。所以在一位师兄的版本上写了一些多节点部署的工具。</p>
-<p><strong>本工具有一些需要Expect工具的支持实现SSH用户名和密码自动登录。</strong></p>
-<h1 id="Spark自动部署工具"><a href="#Spark自动部署工具" class="headerlink" title="Spark自动部署工具"></a>Spark自动部署工具</h1><p>Github地址：<a href="https://github.com/ericsahit/SparkDeployTools" target="_blank" rel="external">https://github.com/ericsahit/SparkDeployTools</a></p>
-<h2 id="1-linux-mscp"><a href="#1-linux-mscp" class="headerlink" title="1. linux\mscp"></a>1. linux\mscp</h2><p>一键多节点拷贝，使用expect进行远程ssh登陆。可以实现自动解压缩tar文件，自动递归拷贝目录。会调用<code>multicopy_server.sh</code>，在远程实现分发拷贝。</p>
-<p>原理：先拷贝到远程的一个节点，在从这个节点往其他节点拷贝，节省流量。</p>
-<p>使用方法：<figure class="highlight plain"><figcaption><span>[-conf conf_file_name] -option sourcePath destDir```</span></figcaption><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line"></div><div class="line">例如，在本地修改一个Spark-env.sh之后，将其上传到Spark目录的conf目录，覆盖原有的配置：</div></pre></td></tr></table></figure></p>
-<p>./mscp.sh -conf ./user_host_passwds -file ~/develop/conf/spark-env.sh /data/hadoopspark/spark-1.1.0-bin-hadoop2.3/conf/<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line"></div><div class="line">例如拷贝Spark，需要先在本地解压缩，然后修改下列文件：</div><div class="line"></div><div class="line">    conf/slaves（Standalone模式指定工作节点）</div><div class="line">    conf/spark-env.sh（Standalone模式指定master IP）</div><div class="line">    conf/hive-site.xml（如果需要hive支持）</div><div class="line">	spark-defaults.conf（配置spark-submit时候的参数，例如指定master参数，序列化类，是否记录历史日志，Driver的内存等等）</div><div class="line"></div><div class="line">然后拷贝Spark目录到远程节点：</div></pre></td></tr></table></figure></p>
-<p>./mscp.sh -conf ./user_host_passwds -dir /home/hadoop/develop/spark-original/spark-1.3.0-bin-hadoop2.3 /data/hadoopspark/<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line"></div><div class="line">版本切换：</div><div class="line">如果存在多个Spark版本，例如原始版本，和修改过的版本，两个版本之间需要经常切换测试。</div><div class="line"></div><div class="line"></div><div class="line">##  2. linux\mrm.sh</div><div class="line">一键删除多节点文件，跟mscp原理差不多，使用expect进行远程ssh登陆和自动填充密码。</div><div class="line"></div><div class="line">##  3. linux\setenv.sh</div><div class="line">实现了多节点的远程Download文件，远程Upload文件，远程`yum_install`.</div><div class="line"></div><div class="line">使用方法：</div></pre></td></tr></table></figure></p>
-<p>./setenv.sh [-conf conf_file_name] option[-download/-upload/-yum_install] [download-file-name|upload-file-path|yum-install-name]<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line"></div><div class="line">例如，先把服务器的`/etc/profile`下载到本地：</div></pre></td></tr></table></figure></p>
-<p>./setenv.sh -conf ./user_host_passwds-root -download /etc/profile<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line"></div><div class="line">然后进行修改，例如我对`$SPARK_HOME`进行了修改，修改完毕之后，上传到服务器节点，会自动将本地的`profile`文件上传到多个节点的`/etc/profile`：</div></pre></td></tr></table></figure></p>
-<p>./setenv.sh -conf ./user_host_passwds-root -upload /etc/profile<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line"></div><div class="line">如果需要远程进行`yum_intall`，例如安装java，可以：</div></pre></td></tr></table></figure></p>
-<p>./setenv.sh -conf ./user_host_passwds-root -yum_install java<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line"></div><div class="line">##  4. spark/switch-spark.sh</div><div class="line"></div><div class="line">如果修改了Spark代码，使用mscp可以将代码部署到多台节点。</div><div class="line"></div><div class="line">如果有多个版本的Spark，例如1.1, 1.2, 1.3, 以及修改后的版本，这个工具可以迅速的进行切换。</div><div class="line"></div><div class="line">使用方法：`switch-spark 1.1|1.2|1.3|smspark|reset|check`</div><div class="line"></div><div class="line">例如：</div></pre></td></tr></table></figure></p>
-<p>./switch-spark.sh 1.1<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line"></div><div class="line">注意设置一下下列参数：</div></pre></td></tr></table></figure></p>
-<p>#Spark所在目录<br>SPARK_HOME_DIR=/data/hadoopspark</p>
-<p>#对切换的节点列表<br>CONF_FILE=$thisdir/user_host_passwds<br>```</p>
-<h3 id="5-日志分析工具"><a href="#5-日志分析工具" class="headerlink" title="5. 日志分析工具"></a>5. 日志分析工具</h3><p>TODO</p>
-
-          
-        
-      
-    </div>
-
-    <div>
-      
-    </div>
-
-    <div>
-      
-    </div>
-
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2016/12/25/Namenode内存分析/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1939,6 +1758,187 @@
 <p>各列的含义：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div></pre></td><td class="code"><pre><div class="line">  /** </div><div class="line">   * Output format:</div><div class="line">   * &lt;----12----&gt; &lt;----15----&gt; &lt;----15----&gt; &lt;----15----&gt; &lt;----12----&gt; &lt;----12----&gt; &lt;-------18-------&gt;</div><div class="line">   *    QUOTA   REMAINING_QUATA SPACE_QUOTA SPACE_QUOTA_REM DIR_COUNT   FILE_COUNT   CONTENT_SIZE     FILE_NAME    </div><div class="line">   */</div><div class="line">QUOTA：文件数配额，（如果没有配额，则显示为none，空间配额同理）</div><div class="line">    =quota</div><div class="line">    </div><div class="line">REMAINING_QUATA：剩余的文件数配额（剩余能创建的目录和文件数量）</div><div class="line">    =quota-fileCount-dirCount（如果没有配额，则显示为inf）</div><div class="line"></div><div class="line">SPACE_QUOTA：空间配额（限制磁盘占用大小）</div><div class="line">    =spaceQuota</div><div class="line"></div><div class="line">SPACE_QUOTA_REM：剩余可以用的磁盘空间</div><div class="line">    =spaceQuota-spaceConsumed</div><div class="line"></div><div class="line">FILE_COUNT/FILE_COUNT：文件/目录数</div><div class="line"></div><div class="line">CONTENT_SIZE：逻辑空间大小，不计副本因素</div><div class="line">    =每个文件/文件的spaceConsumed/其replication</div></pre></td></tr></table></figure></p>
 <h2 id="通过编程设置和显示Quota"><a href="#通过编程设置和显示Quota" class="headerlink" title="通过编程设置和显示Quota"></a>通过编程设置和显示Quota</h2><h3 id="设置Quota"><a href="#设置Quota" class="headerlink" title="设置Quota"></a>设置Quota</h3><p>可以通过<code>DistributedFileSystem.set/getQuota()</code>等一系列方法来设置Quota，在2.7版本中，可以分别设置namespace和storagespace的Quota，还可以StorageType Quota。</p>
 <p>写文件超出限额具体的异常信息：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div></pre></td><td class="code"><pre><div class="line">16/07/12 16:55:27 WARN hdfs.DFSClient: DataStreamer Exception</div><div class="line">org.apache.hadoop.hdfs.protocol.DSQuotaExceededException: The DiskSpace quota of /tmp/testquata2 is exceeded: quota = 41943040 B = 40 MB but diskspace consumed = 402653184 B = 384 MB</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.INodeDirectoryWithQuota.verifyQuota(INodeDirectoryWithQuota.java:195)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.FSDirectory.verifyQuota(FSDirectory.java:2111)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.FSDirectory.updateCount(FSDirectory.java:1845)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.FSDirectory.updateCount(FSDirectory.java:1820)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.FSDirectory.addBlock(FSDirectory.java:373)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.FSNamesystem.saveAllocatedBlock(FSNamesystem.java:2965)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.FSNamesystem.getAdditionalBlock(FSNamesystem.java:2636)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.NameNodeRpcServer.addBlock(NameNodeRpcServer.java:563)</div><div class="line">        at org.apache.hadoop.hdfs.protocolPB.ClientNamenodeProtocolServerSideTranslatorPB.addBlock(ClientNamenodeProtocolServerSideTranslatorPB.java:407)</div><div class="line">        at org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos$ClientNamenodeProtocol$2.callBlockingMethod(ClientNamenodeProtocolProtos.java)</div><div class="line">        at org.apache.hadoop.ipc.ProtobufRpcEngine$Server$ProtoBufRpcInvoker.call(ProtobufRpcEngine.java:585)</div><div class="line">        at org.apache.hadoop.ipc.RPC$Server.call(RPC.java:928)</div><div class="line">        at org.apache.hadoop.ipc.Server$Handler$1.run(Server.java:1962)</div><div class="line">        at org.apache.hadoop.ipc.Server$Handler$1.run(Server.java:1)</div><div class="line">        at java.security.AccessController.doPrivileged(Native Method)</div><div class="line">        at javax.security.auth.Subject.doAs(Subject.java:415)</div><div class="line">        at org.apache.hadoop.security.UserGroupInformation.doAs(UserGroupInformation.java:1548)</div><div class="line">        at org.apache.hadoop.ipc.Server$Handler.run(Server.java:1957)</div><div class="line"></div><div class="line">        at sun.reflect.NativeConstructorAccessorImpl.newInstance0(Native Method)</div><div class="line">        at sun.reflect.NativeConstructorAccessorImpl.newInstance(NativeConstructorAccessorImpl.java:57)</div><div class="line">        at sun.reflect.DelegatingConstructorAccessorImpl.newInstance(DelegatingConstructorAccessorImpl.java:45)</div><div class="line">        at java.lang.reflect.Constructor.newInstance(Constructor.java:526)</div><div class="line">        at org.apache.hadoop.ipc.RemoteException.instantiateException(RemoteException.java:106)</div><div class="line">        at org.apache.hadoop.ipc.RemoteException.unwrapRemoteException(RemoteException.java:73)</div><div class="line">        at org.apache.hadoop.hdfs.DFSOutputStream$DataStreamer.locateFollowingBlock(DFSOutputStream.java:1267)</div><div class="line">        at org.apache.hadoop.hdfs.DFSOutputStream$DataStreamer.nextBlockOutputStream(DFSOutputStream.java:1112)</div><div class="line">        at org.apache.hadoop.hdfs.DFSOutputStream$DataStreamer.run(DFSOutputStream.java:522)</div><div class="line">Caused by: org.apache.hadoop.ipc.RemoteException(org.apache.hadoop.hdfs.protocol.DSQuotaExceededException): The DiskSpace quota of /tmp/testquata2 is exceeded: quota = 41943040 B = 40 MB but diskspace consumed = 402653184 B = 384 MB</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.INodeDirectoryWithQuota.verifyQuota(INodeDirectoryWithQuota.java:195)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.FSDirectory.verifyQuota(FSDirectory.java:2111)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.FSDirectory.updateCount(FSDirectory.java:1845)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.FSDirectory.updateCount(FSDirectory.java:1820)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.FSDirectory.addBlock(FSDirectory.java:373)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.FSNamesystem.saveAllocatedBlock(FSNamesystem.java:2965)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.FSNamesystem.getAdditionalBlock(FSNamesystem.java:2636)</div><div class="line">        at org.apache.hadoop.hdfs.server.namenode.NameNodeRpcServer.addBlock(NameNodeRpcServer.java:563)</div><div class="line">        at org.apache.hadoop.hdfs.protocolPB.ClientNamenodeProtocolServerSideTranslatorPB.addBlock(ClientNamenodeProtocolServerSideTranslatorPB.java:407)</div><div class="line">        at org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos$ClientNamenodeProtocol$2.callBlockingMethod(ClientNamenodeProtocolProtos.java)</div><div class="line">        at org.apache.hadoop.ipc.ProtobufRpcEngine$Server$ProtoBufRpcInvoker.call(ProtobufRpcEngine.java:585)</div><div class="line">        at org.apache.hadoop.ipc.RPC$Server.call(RPC.java:928)</div><div class="line">        at org.apache.hadoop.ipc.Server$Handler$1.run(Server.java:1962)</div><div class="line">        at org.apache.hadoop.ipc.Server$Handler$1.run(Server.java:1)</div><div class="line">        at java.security.AccessController.doPrivileged(Native Method)</div><div class="line">        at javax.security.auth.Subject.doAs(Subject.java:415)</div><div class="line">        at org.apache.hadoop.security.UserGroupInformation.doAs(UserGroupInformation.java:1548)</div><div class="line">        at org.apache.hadoop.ipc.Server$Handler.run(Server.java:1957)</div><div class="line"></div><div class="line">        at org.apache.hadoop.ipc.Client.call(Client.java:1406)</div><div class="line">        at org.apache.hadoop.ipc.Client.call(Client.java:1359)</div><div class="line">        at org.apache.hadoop.ipc.ProtobufRpcEngine$Invoker.invoke(ProtobufRpcEngine.java:206)</div><div class="line">        at com.sun.proxy.$Proxy9.addBlock(Unknown Source)</div><div class="line">        at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)</div><div class="line">        at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57)</div><div class="line">        at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)</div><div class="line">        at java.lang.reflect.Method.invoke(Method.java:606)</div><div class="line">        at org.apache.hadoop.io.retry.RetryInvocationHandler.invokeMethod(RetryInvocationHandler.java:186)</div><div class="line">        at org.apache.hadoop.io.retry.RetryInvocationHandler.invoke(RetryInvocationHandler.java:102)</div><div class="line">        at com.sun.proxy.$Proxy9.addBlock(Unknown Source)</div><div class="line">        at org.apache.hadoop.hdfs.protocolPB.ClientNamenodeProtocolTranslatorPB.addBlock(ClientNamenodeProtocolTranslatorPB.java:348)</div><div class="line">        at org.apache.hadoop.hdfs.DFSOutputStream$DataStreamer.locateFollowingBlock(DFSOutputStream.java:1264)</div><div class="line">        ... 2 more</div><div class="line">put: The DiskSpace quota of /tmp/testquata2 is exceeded: quota = 41943040 B = 40 MB but diskspace consumed = 402653184 B = 384 MB</div></pre></td></tr></table></figure></p>
+
+          
+        
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+    <div>
+      
+    </div>
+
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2016/02/28/Spark集群自动部署脚本/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Wang Haihua">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Haihua's blog">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+            
+            
+              
+                
+                <a class="post-title-link" href="/2016/02/28/Spark集群自动部署脚本/" itemprop="url">
+                  Spark集群自动部署脚本
+                </a>
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2016-02-28T00:43:00+08:00">
+                2016-02-28
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Spark/" itemprop="url" rel="index">
+                    <span itemprop="name">Spark</span>
+                  </a>
+                </span>
+
+                
+                
+                  ， 
+                
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Spark/大数据平台/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据平台</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+       <span id="busuanzi_container_page_pv">
+       &nbsp; | &nbsp; 热度&nbsp; <span id="busuanzi_value_page_pv"></span>°C
+       </span>
+
+
+          
+            
+              <span class="post-comments-count">
+                <span class="post-meta-divider">|</span>
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-comment-o"></i>
+                </span>
+                <a href="/2016/02/28/Spark集群自动部署脚本/#comments" itemprop="discussionUrl">
+                  <span class="post-comments-count ds-thread-count" data-thread-key="2016/02/28/Spark集群自动部署脚本/" itemprop="commentCount"></span>
+                </a>
+              </span>
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>最近需要进行Spark多节点的部署和切换，以及日志收集和统计。所以在一位师兄的版本上写了一些多节点部署的工具。</p>
+<p><strong>本工具有一些需要Expect工具的支持实现SSH用户名和密码自动登录。</strong></p>
+<h1 id="Spark自动部署工具"><a href="#Spark自动部署工具" class="headerlink" title="Spark自动部署工具"></a>Spark自动部署工具</h1><p>Github地址：<a href="https://github.com/ericsahit/SparkDeployTools" target="_blank" rel="external">https://github.com/ericsahit/SparkDeployTools</a></p>
+<h2 id="1-linux-mscp"><a href="#1-linux-mscp" class="headerlink" title="1. linux\mscp"></a>1. linux\mscp</h2><p>一键多节点拷贝，使用expect进行远程ssh登陆。可以实现自动解压缩tar文件，自动递归拷贝目录。会调用<code>multicopy_server.sh</code>，在远程实现分发拷贝。</p>
+<p>原理：先拷贝到远程的一个节点，在从这个节点往其他节点拷贝，节省流量。</p>
+<p>使用方法：<figure class="highlight plain"><figcaption><span>[-conf conf_file_name] -option sourcePath destDir```</span></figcaption><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line"></div><div class="line">例如，在本地修改一个Spark-env.sh之后，将其上传到Spark目录的conf目录，覆盖原有的配置：</div></pre></td></tr></table></figure></p>
+<p>./mscp.sh -conf ./user_host_passwds -file ~/develop/conf/spark-env.sh /data/hadoopspark/spark-1.1.0-bin-hadoop2.3/conf/<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line"></div><div class="line">例如拷贝Spark，需要先在本地解压缩，然后修改下列文件：</div><div class="line"></div><div class="line">    conf/slaves（Standalone模式指定工作节点）</div><div class="line">    conf/spark-env.sh（Standalone模式指定master IP）</div><div class="line">    conf/hive-site.xml（如果需要hive支持）</div><div class="line">	spark-defaults.conf（配置spark-submit时候的参数，例如指定master参数，序列化类，是否记录历史日志，Driver的内存等等）</div><div class="line"></div><div class="line">然后拷贝Spark目录到远程节点：</div></pre></td></tr></table></figure></p>
+<p>./mscp.sh -conf ./user_host_passwds -dir /home/hadoop/develop/spark-original/spark-1.3.0-bin-hadoop2.3 /data/hadoopspark/<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line"></div><div class="line">版本切换：</div><div class="line">如果存在多个Spark版本，例如原始版本，和修改过的版本，两个版本之间需要经常切换测试。</div><div class="line"></div><div class="line"></div><div class="line">##  2. linux\mrm.sh</div><div class="line">一键删除多节点文件，跟mscp原理差不多，使用expect进行远程ssh登陆和自动填充密码。</div><div class="line"></div><div class="line">##  3. linux\setenv.sh</div><div class="line">实现了多节点的远程Download文件，远程Upload文件，远程`yum_install`.</div><div class="line"></div><div class="line">使用方法：</div></pre></td></tr></table></figure></p>
+<p>./setenv.sh [-conf conf_file_name] option[-download/-upload/-yum_install] [download-file-name|upload-file-path|yum-install-name]<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line"></div><div class="line">例如，先把服务器的`/etc/profile`下载到本地：</div></pre></td></tr></table></figure></p>
+<p>./setenv.sh -conf ./user_host_passwds-root -download /etc/profile<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line"></div><div class="line">然后进行修改，例如我对`$SPARK_HOME`进行了修改，修改完毕之后，上传到服务器节点，会自动将本地的`profile`文件上传到多个节点的`/etc/profile`：</div></pre></td></tr></table></figure></p>
+<p>./setenv.sh -conf ./user_host_passwds-root -upload /etc/profile<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line"></div><div class="line">如果需要远程进行`yum_intall`，例如安装java，可以：</div></pre></td></tr></table></figure></p>
+<p>./setenv.sh -conf ./user_host_passwds-root -yum_install java<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line"></div><div class="line">##  4. spark/switch-spark.sh</div><div class="line"></div><div class="line">如果修改了Spark代码，使用mscp可以将代码部署到多台节点。</div><div class="line"></div><div class="line">如果有多个版本的Spark，例如1.1, 1.2, 1.3, 以及修改后的版本，这个工具可以迅速的进行切换。</div><div class="line"></div><div class="line">使用方法：`switch-spark 1.1|1.2|1.3|smspark|reset|check`</div><div class="line"></div><div class="line">例如：</div></pre></td></tr></table></figure></p>
+<p>./switch-spark.sh 1.1<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line"></div><div class="line">注意设置一下下列参数：</div></pre></td></tr></table></figure></p>
+<p>#Spark所在目录<br>SPARK_HOME_DIR=/data/hadoopspark</p>
+<p>#对切换的节点列表<br>CONF_FILE=$thisdir/user_host_passwds<br>```</p>
+<h3 id="5-日志分析工具"><a href="#5-日志分析工具" class="headerlink" title="5. 日志分析工具"></a>5. 日志分析工具</h3><p>TODO</p>
 
           
         
