@@ -1,4 +1,4 @@
-<!doctype html>
+<!DOCTYPE html>
 
 
 
@@ -10,11 +10,19 @@
   <meta charset="UTF-8"/>
 <meta http-equiv="X-UA-Compatible" content="IE=edge" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
 
 
 
 <meta http-equiv="Cache-Control" content="no-transform" />
 <meta http-equiv="Cache-Control" content="no-siteapp" />
+
 
 
 
@@ -68,7 +76,7 @@
 
 <link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
 
-<link href="/css/main.css?v=5.1.0" rel="stylesheet" type="text/css" />
+<link href="/css/main.css?v=5.1.2" rel="stylesheet" type="text/css" />
 
 
   <meta name="keywords" content="Hexo, NexT" />
@@ -80,7 +88,7 @@
 
 
 
-  <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico?v=5.1.0" />
+  <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico?v=5.1.2" />
 
 
 
@@ -104,9 +112,11 @@
   var CONFIG = {
     root: '/',
     scheme: 'Mist',
-    sidebar: {"position":"left","display":"always","offset":12,"offset_float":0,"b2t":false,"scrollpercent":false},
+    version: '5.1.2',
+    sidebar: {"position":"left","display":"always","offset":12,"offset_float":12,"b2t":false,"scrollpercent":false,"onmobile":false},
     fancybox: true,
-    motion: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn"}},
     duoshuo: {
       userId: '0',
       author: '博主'
@@ -129,11 +139,7 @@
 
 
 
-  <title> Haihua's blog </title>
-</head>
-
-<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
-
+  <title>Haihua's blog</title>
   
 
 
@@ -153,20 +159,17 @@
 
 
 
+</head>
 
-
-
-
-
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
 
   
   
     
   
 
-  <div class="container one-collumn sidebar-position-left 
-   page-home 
- ">
+  <div class="container sidebar-position-left 
+  page-home">
     <div class="headband"></div>
 
     <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
@@ -212,18 +215,8 @@
         </li>
       
         
-        <li class="menu-item menu-item-categories">
-          <a href="/categories" rel="section">
-            
-              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
-            
-            分类
-          </a>
-        </li>
-      
-        
         <li class="menu-item menu-item-about">
-          <a href="/about" rel="section">
+          <a href="/about/" rel="section">
             
               <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
             
@@ -232,22 +225,32 @@
         </li>
       
         
-        <li class="menu-item menu-item-archives">
-          <a href="/archives" rel="section">
-            
-              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
-            
-            归档
-          </a>
-        </li>
-      
-        
         <li class="menu-item menu-item-tags">
-          <a href="/tags" rel="section">
+          <a href="/tags/" rel="section">
             
               <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
             
             标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
           </a>
         </li>
       
@@ -279,7 +282,11 @@
   
   
 
-  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2016/12/25/Namenode内存分析/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -298,16 +305,8 @@
         
         
           <h1 class="post-title" itemprop="name headline">
-            
-            
-              
                 
-                <a class="post-title-link" href="/2016/12/25/Namenode内存分析/" itemprop="url">
-                  Namenode内存分析
-                </a>
-              
-            
-          </h1>
+                <a class="post-title-link" href="/2016/12/25/Namenode内存分析/" itemprop="url">Namenode内存分析</a></h1>
         
 
         <div class="post-meta">
@@ -377,7 +376,8 @@
                   <i class="fa fa-comment-o"></i>
                 </span>
                 <a href="/2016/12/25/Namenode内存分析/#comments" itemprop="discussionUrl">
-                  <span class="post-comments-count disqus-comment-count" data-disqus-identifier="2016/12/25/Namenode内存分析/" itemprop="commentCount"></span>
+                  <span class="post-comments-count disqus-comment-count"
+                        data-disqus-identifier="2016/12/25/Namenode内存分析/" itemprop="commentCount"></span>
                 </a>
               </span>
             
@@ -396,7 +396,9 @@
       </header>
     
 
-
+    
+    
+    
     <div class="post-body" itemprop="articleBody">
 
       
@@ -561,15 +563,15 @@
         
       
     </div>
+    
+    
+    
 
-    <div>
-      
-    </div>
+    
 
-    <div>
-      
-    </div>
+    
 
+    
 
     <footer class="post-footer">
       
@@ -583,6 +585,10 @@
         <div class="post-eof"></div>
       
     </footer>
+  </div>
+  
+  
+  
   </article>
 
 
@@ -595,7 +601,11 @@
   
   
 
-  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2016/11/18/Hive-Metastore-Server生产化实践/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -614,16 +624,8 @@
         
         
           <h1 class="post-title" itemprop="name headline">
-            
-            
-              
                 
-                <a class="post-title-link" href="/2016/11/18/Hive-Metastore-Server生产化实践/" itemprop="url">
-                  Hive Metastore Server生产化实践
-                </a>
-              
-            
-          </h1>
+                <a class="post-title-link" href="/2016/11/18/Hive-Metastore-Server生产化实践/" itemprop="url">Hive Metastore Server生产化实践</a></h1>
         
 
         <div class="post-meta">
@@ -693,7 +695,8 @@
                   <i class="fa fa-comment-o"></i>
                 </span>
                 <a href="/2016/11/18/Hive-Metastore-Server生产化实践/#comments" itemprop="discussionUrl">
-                  <span class="post-comments-count disqus-comment-count" data-disqus-identifier="2016/11/18/Hive-Metastore-Server生产化实践/" itemprop="commentCount"></span>
+                  <span class="post-comments-count disqus-comment-count"
+                        data-disqus-identifier="2016/11/18/Hive-Metastore-Server生产化实践/" itemprop="commentCount"></span>
                 </a>
               </span>
             
@@ -712,7 +715,9 @@
       </header>
     
 
-
+    
+    
+    
     <div class="post-body" itemprop="articleBody">
 
       
@@ -886,15 +891,15 @@
         
       
     </div>
+    
+    
+    
 
-    <div>
-      
-    </div>
+    
 
-    <div>
-      
-    </div>
+    
 
+    
 
     <footer class="post-footer">
       
@@ -908,6 +913,10 @@
         <div class="post-eof"></div>
       
     </footer>
+  </div>
+  
+  
+  
   </article>
 
 
@@ -920,7 +929,11 @@
   
   
 
-  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2016/11/10/Spark诊断调优系统/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -939,16 +952,8 @@
         
         
           <h1 class="post-title" itemprop="name headline">
-            
-            
-              
                 
-                <a class="post-title-link" href="/2016/11/10/Spark诊断调优系统/" itemprop="url">
-                  Spark诊断调优系统
-                </a>
-              
-            
-          </h1>
+                <a class="post-title-link" href="/2016/11/10/Spark诊断调优系统/" itemprop="url">Spark诊断调优系统</a></h1>
         
 
         <div class="post-meta">
@@ -1018,7 +1023,8 @@
                   <i class="fa fa-comment-o"></i>
                 </span>
                 <a href="/2016/11/10/Spark诊断调优系统/#comments" itemprop="discussionUrl">
-                  <span class="post-comments-count disqus-comment-count" data-disqus-identifier="2016/11/10/Spark诊断调优系统/" itemprop="commentCount"></span>
+                  <span class="post-comments-count disqus-comment-count"
+                        data-disqus-identifier="2016/11/10/Spark诊断调优系统/" itemprop="commentCount"></span>
                 </a>
               </span>
             
@@ -1037,7 +1043,9 @@
       </header>
     
 
-
+    
+    
+    
     <div class="post-body" itemprop="articleBody">
 
       
@@ -1150,15 +1158,15 @@
         
       
     </div>
+    
+    
+    
 
-    <div>
-      
-    </div>
+    
 
-    <div>
-      
-    </div>
+    
 
+    
 
     <footer class="post-footer">
       
@@ -1172,6 +1180,10 @@
         <div class="post-eof"></div>
       
     </footer>
+  </div>
+  
+  
+  
   </article>
 
 
@@ -1184,7 +1196,11 @@
   
   
 
-  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2016/11/10/Git命令使用总结/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1203,16 +1219,8 @@
         
         
           <h1 class="post-title" itemprop="name headline">
-            
-            
-              
                 
-                <a class="post-title-link" href="/2016/11/10/Git命令使用总结/" itemprop="url">
-                  Git命令使用总结
-                </a>
-              
-            
-          </h1>
+                <a class="post-title-link" href="/2016/11/10/Git命令使用总结/" itemprop="url">Git命令使用总结</a></h1>
         
 
         <div class="post-meta">
@@ -1282,7 +1290,8 @@
                   <i class="fa fa-comment-o"></i>
                 </span>
                 <a href="/2016/11/10/Git命令使用总结/#comments" itemprop="discussionUrl">
-                  <span class="post-comments-count disqus-comment-count" data-disqus-identifier="2016/11/10/Git命令使用总结/" itemprop="commentCount"></span>
+                  <span class="post-comments-count disqus-comment-count"
+                        data-disqus-identifier="2016/11/10/Git命令使用总结/" itemprop="commentCount"></span>
                 </a>
               </span>
             
@@ -1301,7 +1310,9 @@
       </header>
     
 
-
+    
+    
+    
     <div class="post-body" itemprop="articleBody">
 
       
@@ -1360,15 +1371,15 @@
         
       
     </div>
+    
+    
+    
 
-    <div>
-      
-    </div>
+    
 
-    <div>
-      
-    </div>
+    
 
+    
 
     <footer class="post-footer">
       
@@ -1382,6 +1393,10 @@
         <div class="post-eof"></div>
       
     </footer>
+  </div>
+  
+  
+  
   </article>
 
 
@@ -1394,7 +1409,11 @@
   
   
 
-  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2016/09/28/Spark堆外内存管理总结/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1413,16 +1432,8 @@
         
         
           <h1 class="post-title" itemprop="name headline">
-            
-            
-              
                 
-                <a class="post-title-link" href="/2016/09/28/Spark堆外内存管理总结/" itemprop="url">
-                  Spark堆外内存管理总结
-                </a>
-              
-            
-          </h1>
+                <a class="post-title-link" href="/2016/09/28/Spark堆外内存管理总结/" itemprop="url">Spark堆外内存管理总结</a></h1>
         
 
         <div class="post-meta">
@@ -1492,7 +1503,8 @@
                   <i class="fa fa-comment-o"></i>
                 </span>
                 <a href="/2016/09/28/Spark堆外内存管理总结/#comments" itemprop="discussionUrl">
-                  <span class="post-comments-count disqus-comment-count" data-disqus-identifier="2016/09/28/Spark堆外内存管理总结/" itemprop="commentCount"></span>
+                  <span class="post-comments-count disqus-comment-count"
+                        data-disqus-identifier="2016/09/28/Spark堆外内存管理总结/" itemprop="commentCount"></span>
                 </a>
               </span>
             
@@ -1511,7 +1523,9 @@
       </header>
     
 
-
+    
+    
+    
     <div class="post-body" itemprop="articleBody">
 
       
@@ -1562,15 +1576,15 @@
         
       
     </div>
+    
+    
+    
 
-    <div>
-      
-    </div>
+    
 
-    <div>
-      
-    </div>
+    
 
+    
 
     <footer class="post-footer">
       
@@ -1584,6 +1598,10 @@
         <div class="post-eof"></div>
       
     </footer>
+  </div>
+  
+  
+  
   </article>
 
 
@@ -1596,7 +1614,11 @@
   
   
 
-  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2016/08/01/HDFS配额总结/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1615,16 +1637,8 @@
         
         
           <h1 class="post-title" itemprop="name headline">
-            
-            
-              
                 
-                <a class="post-title-link" href="/2016/08/01/HDFS配额总结/" itemprop="url">
-                  HDFS配额总结
-                </a>
-              
-            
-          </h1>
+                <a class="post-title-link" href="/2016/08/01/HDFS配额总结/" itemprop="url">HDFS配额总结</a></h1>
         
 
         <div class="post-meta">
@@ -1705,7 +1719,8 @@
                   <i class="fa fa-comment-o"></i>
                 </span>
                 <a href="/2016/08/01/HDFS配额总结/#comments" itemprop="discussionUrl">
-                  <span class="post-comments-count disqus-comment-count" data-disqus-identifier="2016/08/01/HDFS配额总结/" itemprop="commentCount"></span>
+                  <span class="post-comments-count disqus-comment-count"
+                        data-disqus-identifier="2016/08/01/HDFS配额总结/" itemprop="commentCount"></span>
                 </a>
               </span>
             
@@ -1724,7 +1739,9 @@
       </header>
     
 
-
+    
+    
+    
     <div class="post-body" itemprop="articleBody">
 
       
@@ -1764,15 +1781,15 @@
         
       
     </div>
+    
+    
+    
 
-    <div>
-      
-    </div>
+    
 
-    <div>
-      
-    </div>
+    
 
+    
 
     <footer class="post-footer">
       
@@ -1786,6 +1803,10 @@
         <div class="post-eof"></div>
       
     </footer>
+  </div>
+  
+  
+  
   </article>
 
 
@@ -1798,7 +1819,11 @@
   
   
 
-  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2016/02/28/Spark集群自动部署脚本/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1817,16 +1842,8 @@
         
         
           <h1 class="post-title" itemprop="name headline">
-            
-            
-              
                 
-                <a class="post-title-link" href="/2016/02/28/Spark集群自动部署脚本/" itemprop="url">
-                  Spark集群自动部署脚本
-                </a>
-              
-            
-          </h1>
+                <a class="post-title-link" href="/2016/02/28/Spark集群自动部署脚本/" itemprop="url">Spark集群自动部署脚本</a></h1>
         
 
         <div class="post-meta">
@@ -1896,7 +1913,8 @@
                   <i class="fa fa-comment-o"></i>
                 </span>
                 <a href="/2016/02/28/Spark集群自动部署脚本/#comments" itemprop="discussionUrl">
-                  <span class="post-comments-count disqus-comment-count" data-disqus-identifier="2016/02/28/Spark集群自动部署脚本/" itemprop="commentCount"></span>
+                  <span class="post-comments-count disqus-comment-count"
+                        data-disqus-identifier="2016/02/28/Spark集群自动部署脚本/" itemprop="commentCount"></span>
                 </a>
               </span>
             
@@ -1915,7 +1933,9 @@
       </header>
     
 
-
+    
+    
+    
     <div class="post-body" itemprop="articleBody">
 
       
@@ -1945,15 +1965,15 @@
         
       
     </div>
+    
+    
+    
 
-    <div>
-      
-    </div>
+    
 
-    <div>
-      
-    </div>
+    
 
+    
 
     <footer class="post-footer">
       
@@ -1967,6 +1987,10 @@
         <div class="post-eof"></div>
       
     </footer>
+  </div>
+  
+  
+  
   </article>
 
 
@@ -1975,7 +1999,7 @@
 
   
 
-          
+
           </div>
           
 
@@ -1995,6 +2019,7 @@
   </div>
 
   <aside id="sidebar" class="sidebar">
+    
     <div class="sidebar-inner">
 
       
@@ -2003,19 +2028,22 @@
 
       <section class="site-overview sidebar-panel sidebar-panel-active">
         <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
-          <img class="site-author-image" itemprop="image"
-               src="/images/avatar.jpg"
-               alt="Wang Haihua" />
-          <p class="site-author-name" itemprop="name">Wang Haihua</p>
-           
-              <p class="site-description motion-element" itemprop="description">学习总结 思考感悟 知识总结</p>
           
+            <img class="site-author-image" itemprop="image"
+              src="/images/avatar.jpg"
+              alt="Wang Haihua" />
+          
+            <p class="site-author-name" itemprop="name">Wang Haihua</p>
+            <p class="site-description motion-element" itemprop="description">学习总结 思考感悟 知识总结</p>
         </div>
+
         <nav class="site-state motion-element">
-        
+
           
             <div class="site-state-item site-state-posts">
-              <a href="/archives">
+            
+              <a href="/archives/">
+            
                 <span class="site-state-item-count">7</span>
                 <span class="site-state-item-name">日志</span>
               </a>
@@ -2023,8 +2051,10 @@
           
 
           
+            
+            
             <div class="site-state-item site-state-categories">
-              <a href="/categories">
+              <a href="/categories/index.html">
                 <span class="site-state-item-count">12</span>
                 <span class="site-state-item-name">分类</span>
               </a>
@@ -2032,8 +2062,10 @@
           
 
           
+            
+            
             <div class="site-state-item site-state-tags">
-              <a href="/tags">
+              <a href="/tags/index.html">
                 <span class="site-state-item-count">13</span>
                 <span class="site-state-item-name">标签</span>
               </a>
@@ -2050,28 +2082,19 @@
               <span class="links-of-author-item">
                 <a href="https://github.com/ericsahit" target="_blank" title="GitHub">
                   
-                    <i class="fa fa-fw fa-github"></i>
-                  
-                  GitHub
-                </a>
+                    <i class="fa fa-fw fa-globe"></i>GitHub</a>
               </span>
             
               <span class="links-of-author-item">
                 <a href="https://www.zhihu.com/people/wang-hai-hua-96" target="_blank" title="Zhihu">
                   
-                    <i class="fa fa-fw fa-globe"></i>
-                  
-                  Zhihu
-                </a>
+                    <i class="fa fa-fw fa-globe"></i>Zhihu</a>
               </span>
             
               <span class="links-of-author-item">
                 <a href="https://www.linkedin.com/in/wang-haihua-022b3687/" target="_blank" title="Linkedin">
                   
-                    <i class="fa fa-fw fa-globe"></i>
-                  
-                  Linkedin
-                </a>
+                    <i class="fa fa-fw fa-globe"></i>Linkedin</a>
               </span>
             
           
@@ -2110,22 +2133,25 @@
     <i class="fa fa-heart"></i>
   </span>
   <span class="author" itemprop="copyrightHolder">Wang Haihua</span>
+
+  
 </div>
 
 
-<div class="powered-by">
-  由 <a class="theme-link" href="https://hexo.io">Hexo</a> 强力驱动
-</div>
+  <div class="powered-by">由 <a class="theme-link" href="https://hexo.io">Hexo</a> 强力驱动</div>
 
-<div class="theme-info">
-  主题 -
-  <a class="theme-link" href="https://github.com/iissnan/hexo-theme-next">
-    NexT.Mist
-  </a>
-</div>
+  <span class="post-meta-divider">|</span>
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" href="https://github.com/iissnan/hexo-theme-next">NexT.Mist</a> v5.1.2</div>
 
 
         
+
+
+
+
+
+
 
         
       </div>
@@ -2137,7 +2163,7 @@
         
       </div>
     
-    
+
   </div>
 
   
@@ -2157,6 +2183,14 @@
 
 
   
+
+
+
+
+
+
+
+
 
 
 
@@ -2183,65 +2217,66 @@
   
 
 
-  <script type="text/javascript" src="/js/src/utils.js?v=5.1.0"></script>
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.2"></script>
 
-  <script type="text/javascript" src="/js/src/motion.js?v=5.1.0"></script>
-
-
-
-  
-  
-
-  
-
-  
-
-
-  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.0"></script>
-
-
-
-  
-
-
-
-  
-
-    <script type="text/javascript">
-      var disqus_shortname = 'haihuawang';
-      var disqus_identifier = 'index.html';
-
-      var disqus_title = "";
-
-
-      function run_disqus_script(disqus_script) {
-        var dsq = document.createElement('script');
-        dsq.type = 'text/javascript';
-        dsq.async = true;
-        dsq.src = '//' + disqus_shortname + '.disqus.com/' + disqus_script;
-        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
-      }
-
-      run_disqus_script('count.js');
-
-      
-
-    </script>
-  
-
-
-
-
-
-
-
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.2"></script>
 
 
 
   
   
 
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.2"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.2"></script>
+
+
   
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.2"></script>
+
+
+
+  
+
+
+  
+
+    
+      <script id="dsq-count-scr" src="https://haihuawang.disqus.com/count.js" async></script>
+    
+
+    
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
 
   
 
@@ -2249,6 +2284,9 @@
 
   
 
+  
+
+  
 
   
 
