@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next mist use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+  
+  
+  
+  
+
+  
+    
+    
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+    
+    <link href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&subset=latin,latin-ext" rel="stylesheet" type="text/css">
+  
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.2" rel="stylesheet" type="text/css" />
+
+
+  <meta name="keywords" content="Hive," />
+
+
+
+
+
+
+
+
+  <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico?v=5.1.2" />
+
+
+
+
+
+
+<meta name="description" content="Hive0.13到2.1跨版本升级全姿势前一段时间我们团队对Hive进行了一次从0.13版本到2.1版本的跨版本升级，升级期间也遇到了一些问题，但是基本做到了可灰度、可控制和升级期间稳定性保证。不停服务这个属性通过本文分析也可以达到，但是我们的场景下接受服务暂停，所以停服务花了一个小时来进行最终的升级。
+使用背景：
+
+深度使用Hive的各项服务。
+线上每天SQL总量80000+，包含各种正常的和奇">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Hive升级全姿势">
+<meta property="og:url" content="http://yoursite.com/2017/09/10/Hive升级全姿势/index.html">
+<meta property="og:site_name" content="Haihua's blog">
+<meta property="og:description" content="Hive0.13到2.1跨版本升级全姿势前一段时间我们团队对Hive进行了一次从0.13版本到2.1版本的跨版本升级，升级期间也遇到了一些问题，但是基本做到了可灰度、可控制和升级期间稳定性保证。不停服务这个属性通过本文分析也可以达到，但是我们的场景下接受服务暂停，所以停服务花了一个小时来进行最终的升级。
+使用背景：
+
+深度使用Hive的各项服务。
+线上每天SQL总量80000+，包含各种正常的和奇">
+<meta property="og:updated_time" content="2017-09-10T14:25:41.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Hive升级全姿势">
+<meta name="twitter:description" content="Hive0.13到2.1跨版本升级全姿势前一段时间我们团队对Hive进行了一次从0.13版本到2.1版本的跨版本升级，升级期间也遇到了一些问题，但是基本做到了可灰度、可控制和升级期间稳定性保证。不停服务这个属性通过本文分析也可以达到，但是我们的场景下接受服务暂停，所以停服务花了一个小时来进行最终的升级。
+使用背景：
+
+深度使用Hive的各项服务。
+线上每天SQL总量80000+，包含各种正常的和奇">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '5.1.2',
+    sidebar: {"position":"left","display":"always","offset":12,"offset_float":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: 'AOO7Y1PHIM',
+      apiKey: '57733267bb9cf8b734be8b6d7aebcd4b',
+      indexName: 'blog_index',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2017/09/10/Hive升级全姿势/"/>
+
+
+
+
+
+  <title>Hive升级全姿势 | Haihua's blog</title>
+  
+
+
+
+
+
+  <script type="text/javascript">
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "https://hm.baidu.com/hm.js?43d332dfc506683a6b9f3c2374e511c5";
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+  </script>
+
+
+
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">Haihua's blog</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle">Live hard or Die hard</p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
+            
+            关于
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/09/10/Hive升级全姿势/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Wang Haihua">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Haihua's blog">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Hive升级全姿势</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-09-10T22:19:36+08:00">
+                2017-09-10
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Hive/" itemprop="url" rel="index">
+                    <span itemprop="name">Hive</span>
+                  </a>
+                </span>
+
+                
+                
+                  ， 
+                
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Hive/Hadoop/" itemprop="url" rel="index">
+                    <span itemprop="name">Hadoop</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+       <span id="busuanzi_container_page_pv">
+       &nbsp; | &nbsp; 热度&nbsp; <span id="busuanzi_value_page_pv"></span>°C
+       </span>
+
+
+          
+            
+              <span class="post-comments-count">
+                <span class="post-meta-divider">|</span>
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-comment-o"></i>
+                </span>
+                <a href="/2017/09/10/Hive升级全姿势/#comments" itemprop="discussionUrl">
+                  <span class="post-comments-count disqus-comment-count"
+                        data-disqus-identifier="2017/09/10/Hive升级全姿势/" itemprop="commentCount"></span>
+                </a>
+              </span>
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="Hive0-13到2-1跨版本升级全姿势"><a href="#Hive0-13到2-1跨版本升级全姿势" class="headerlink" title="Hive0.13到2.1跨版本升级全姿势"></a>Hive0.13到2.1跨版本升级全姿势</h1><p>前一段时间我们团队对Hive进行了一次从0.13版本到2.1版本的跨版本升级，升级期间也遇到了一些问题，<br>但是基本做到了<code>可灰度</code>、<code>可控制</code>和升级期间<code>稳定性</code>保证。<code>不停服务</code>这个属性通过本文分析也可以达到，<br>但是我们的场景下接受服务暂停，所以停服务花了一个小时来进行最终的升级。</p>
+<p>使用背景：</p>
+<ol>
+<li><code>深度</code>使用Hive的各项服务。</li>
+<li>线上每天SQL总量<code>80000+</code>，包含各种正常的和<code>奇葩</code>的SQL语法。</li>
+<li>同时使用<code>Spark</code>和Hive进行ETL</li>
+</ol>
+<p>下面从<code>元数据</code>、<code>语法兼容性</code>、<code>新功能</code>、<code>UDF兼容性</code>、<code>Hive2.1的一些不足</code>等几个方面来讨论下升级注意事项和升级期间踩过的一些坑。</p>
+<h2 id="1-元数据"><a href="#1-元数据" class="headerlink" title="1. 元数据"></a>1. 元数据</h2><p>Hive元数据是Hadoop平台的核心数据，如果只是使用Hive提供的<a href="https://cwiki.apache.org/confluence/display/Hive/Hive+Schema+Tool" target="_blank" rel="external">Hive Schema Tools</a><br>来进行元数据Schema升级的话，整个升级过程是黑盒，并不利于精确控制，在深度使用场景下还有可能爆各种奇葩错误。</p>
+<blockquote>
+<p>例如如果你同时在用Spark，那么元数据VERSION表中的版本可能被修改为<code>1.2.1</code>（实际版本是0.13），如果<br>使用<code>HiveSchemaMetaTools</code>时候参数不注意设定，这货是会<code>1.2.1</code>开始执行升级脚本，最后会一部分升级脚本成功，一部分失败，然后结果你懂得。</p>
+</blockquote>
+<p>所以首先需要对Hive元数据从0.13到2.1的升级脚本进行详细分析，再确定具体升级方式。</p>
+<p>0.13到2.1的元数据Schema升级脚本，位于<code>${HIVE_HOME}/metastore/scripts/upgrade/${DB_TYPE}/</code>文件夹内。<br>一共17个子升级脚本和对应的issue，通过查看每一个脚本明细SQL，和对应的issue信息以及适用场景，<br>可以将schema升级脚本分为以下几类：</p>
+<blockquote>
+<p>升级脚本归类明细请参考<code>附录</code>，我们元数据使用MySQL数据库，使用其他类型数据库例如<code>Oracle</code>，升级脚本有细微差别，请仔细review升级脚本。</p>
+</blockquote>
+<h3 id="1-1-建议修改：hive-13076（涉及到建表和修改表）"><a href="#1-1-建议修改：hive-13076（涉及到建表和修改表）" class="headerlink" title="1.1 建议修改：hive-13076（涉及到建表和修改表）"></a>1.1 建议修改：hive-13076（涉及到建表和修改表）</h3><p>从代码分析上看不影响Hive正常操作，但是涉及到<code>建表和修改表操作</code>，另外这个脚本的升级内容是一个<strong>建表操作</strong>，不涉及到修改表操作，所以风险较小，建议在灰度2.1客户端之前先进行升级操作。</p>
+<p>这个升级目的是让hive支持表级别主键和外键，从而可以在CBO时候优化join的执行计划。<br>目前社区完成了主键和外键的语法支持和存储，而CBO使用主键和外键功能还处理未开发状态。</p>
+<p>Hive2.1支持的新语法：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">CREATE TABLE vendor( vendor_id int, PRIMARY KEY (vendor_id)  DISABLE NOVALIDATE RELY);</div><div class="line"></div><div class="line">CREATE TABLE product ( product_id int, product_vendor_id int,</div><div class="line">    PRIMARY KEY (product_id)  DISABLE NOVALIDATE,</div><div class="line">    CONSTRAINT product_fk_1 FOREIGN KEY (product_vendor_id) REFERENCES vendor(vendor_id)</div><div class="line">    DISABLE NOVALIDATE</div><div class="line">);</div><div class="line"></div><div class="line">ALTER TABLE table2 ADD CONSTRAINT pkt2 primary key (a) disable novalidate;</div><div class="line">ALTER TABLE table3 ADD CONSTRAINT fk1 FOREIGN KEY ( x ) REFERENCES table2(a) DISABLE NOVALIDATE RELY;</div><div class="line">ALTER TABLE table6 ADD CONSTRAINT fk4 FOREIGN KEY ( y ) REFERENCES table1(a) DISABLE NOVALIDATE;</div></pre></td></tr></table></figure></p>
+<h3 id="1-2-事务-Hive-Transaction-相关修改（不启用Hive事务则不需要）"><a href="#1-2-事务-Hive-Transaction-相关修改（不启用Hive事务则不需要）" class="headerlink" title="1.2. 事务(Hive Transaction)相关修改（不启用Hive事务则不需要）"></a>1.2. 事务(Hive Transaction)相关修改（不启用Hive事务则不需要）</h3><p>默认事务是不启用的，当通过配置启用Hive事务时候使用到。Hive事务的应用场景比较有限。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line">5. hive-12807</div><div class="line">6. hive-12814</div><div class="line">7. hive-12816</div><div class="line">8. hive-12818</div><div class="line">9. hive-12819</div><div class="line">107. hive-12821</div><div class="line">11. hive-12822</div><div class="line">12. hive-12823</div><div class="line">13. hive-12831</div><div class="line">14. hive-12832</div><div class="line">16. hive-13395</div><div class="line">17. hive-13354</div></pre></td></tr></table></figure></p>
+<h3 id="1-3-Hcatalog相关修改（不使用Hcatalog则不需要）"><a href="#1-3-Hcatalog相关修改（不使用Hcatalog则不需要）" class="headerlink" title="1.3. Hcatalog相关修改（不使用Hcatalog则不需要）"></a>1.3. Hcatalog相关修改（不使用Hcatalog则不需要）</h3><p>增加<code>NOTIFICATION_LOG</code>和<code>NOTIFICATION_SEQUENCE</code>表。支持hcatalog metastore notification机制。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">2. hive-9296</div></pre></td></tr></table></figure>
+<h3 id="1-4-其他非关键修改（一些特殊场景使用到）"><a href="#1-4-其他非关键修改（一些特殊场景使用到）" class="headerlink" title="1.4. 其他非关键修改（一些特殊场景使用到）"></a>1.4. 其他非关键修改（一些特殊场景使用到）</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">1. hive-7784: 给`PART_COL_STATS`表增加索引，加快CBO速度。</div><div class="line">3. hive-7018: 删除`TBLS`和`PARTITIONS`表在0.10后不用的`LINK_TARGET_ID`列。</div><div class="line">    0.13版本schema本身就不含有这个列。Oracle可能会遇到这个问题。不建议执行，因为这个操作危险性比较大。</div><div class="line">4. hive-11970: 增加`COLUMNS_V2`等表的`COLUMN_NAME`列名长度到767，</div><div class="line">    防止某些特殊情况例如Avro导出表情况下列名超过128个字符。一般情况遇不到</div></pre></td></tr></table></figure>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>通过分析可以知道，0.13到2.1的元数据基本完全兼容，根据公司具体场景进行局部升级即可。<br>例如，如果不使用以上提到的事务、Hcatalog、Avro导出等特殊功能，完全可以做到<code>只升级程序不升级元数据</code>也没有<code>使用问题</code>。<br>但是前提是：</p>
+<ol>
+<li>关闭元数据VERISON校验相关功能：设置<code>hive.metastore.schema.verification=false</code>。必要时候修改代码，禁用Hive自身的Check机制。</li>
+<li>配置禁止JDO框架来自动更新元数据schema：设置<code>datanucleus.fixedDatastore=true</code>和<code>datanucleus.autoCreateSchema=false</code>。</li>
+</ol>
+<h2 id="2-语法兼容性"><a href="#2-语法兼容性" class="headerlink" title="2. 语法兼容性"></a>2. 语法兼容性</h2><p>Hive版本升级后，给人的感觉是<code>语法要求越来越严格</code>，所以很多在0.13可以跑的SQL，到了Hive2.1会报错。<br>下面总结升级过程中遇到的一些语法兼容性问题。</p>
+<h3 id="2-1-Hive新增保留字问题"><a href="#2-1-Hive新增保留字问题" class="headerlink" title="2.1 Hive新增保留字问题"></a>2.1 Hive新增保留字问题</h3><p>Hive随着版本变迁，保留字越来越多。<br>保留字的详细情况可以参考：<a href="https://cwiki.apache.org/confluence/display/Hive/LanguageManual+DDL#LanguageManualDDL-Keywords,Non-reservedKeywordsandReservedKeywords" target="_blank" rel="external">Hive各个版本的保留字</a></p>
+<p>保留字问题有以下两种：</p>
+<h4 id="2-1-1-新增预留字"><a href="#2-1-1-新增预留字" class="headerlink" title="2.1.1 新增预留字"></a>2.1.1 新增预留字</h4><p>新的版本Hive会预留更多保留字，如果SQL中有问题，可以通过参数设置<br><code>set hive.support.sql11.reserved.keywords=false</code>来取消保留字校验，<br>达到不需要修改SQL的又能保证线上SQL稳定运行的兼容效果。</p>
+<h4 id="2-1-2-新增关键字"><a href="#2-1-2-新增关键字" class="headerlink" title="2.1.2 新增关键字"></a>2.1.2 新增关键字</h4><p>当SQL中含有Hive中的关键字时候，只能修改SQL进行兼容了，需要将与关键字冲突的属性名用反引号包围。<br>新版本增加的关键字请参考<code>附录1</code>。</p>
+<h3 id="2-2-其他兼容性问题和解决方法"><a href="#2-2-其他兼容性问题和解决方法" class="headerlink" title="2.2 其他兼容性问题和解决方法"></a>2.2 其他兼容性问题和解决方法</h3><ol>
+<li><code>hive.</code>开头的参数如果不在Hive2.1配置中（可能已经被移除），或者大小写不对，set语句会直接报错。</li>
+</ol>
+<p>例如：<code>set hive.auto.convert.JOIN=true</code>执行会报错。</p>
+<p>解决方法：规范化语句，或者关闭强制校验参数。</p>
+<ol>
+<li>建表时候不指定列的具体类型在2.1会直接报错。</li>
+</ol>
+<p>例如：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">create table test_table_null_no_type as select null as id, &quot;zhangsan&quot; as name;</div></pre></td></tr></table></figure></p>
+<p>解决方法：规范化SQL，指定具体的列类型</p>
+<ol>
+<li>通过函数等运算产生的列，没有指定明确的别名，在2.1会偶尔报错。</li>
+</ol>
+<p>例如：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">select id, `_c1` from (select id, get_json_object(deliver_geojson,&apos;$.features&apos;) from tb) a</div></pre></td></tr></table></figure></p>
+<p>解决方法：规范化SQL，指定有业务含义的别名，不以下划线开头</p>
+<ol>
+<li>在使用windows函数的时候，当列名在多个表都存在的时候，不指定列所属表在2.1会报错。</li>
+</ol>
+<p>例如：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">select row_number() over(partition by user_id order by a.log_time desc) rank</div><div class="line">from a join b on a.id = b.id;</div></pre></td></tr></table></figure>
+<p>其中user_id在a表和b表中均存在。</p>
+<p>解决方法：规范化SQL，指定列所属表名。</p>
+<ol>
+<li>在使用union all的时候，union起来的多个查询，含有<code>orderBy、clusterBy、distributeBy sortBy、limit</code>在2.1会报错。</li>
+</ol>
+<p>例如：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">select 1 from default.dual limit 1</div><div class="line">union all</div><div class="line">select 2 from default.dual limit 1;</div></pre></td></tr></table></figure>
+<p>解决方法：只允许在最后一个语句中含有<code>orderBy、clusterBy、distributeBy sortBy、limit</code>语句。</p>
+<ol>
+<li>使用windows函数时候，窗口的上限和下限必须大于<code>0</code>，否则在2.1会报错。</li>
+</ol>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">--错误信息：SemanticException Window Frame Boundary Amount must be a positive integer, provided amount is: 0</div><div class="line">select order_date  ,order_date_new ,restaurant_id ,phone_1 ,count(phone_1)</div><div class="line">    over(PARTITION BY restaurant_id,phone_1 order by days range between 0 preceding and 30 following) buy_num</div><div class="line">from tb01;</div></pre></td></tr></table></figure>
+<p>解决方法：规范化SQL，避免窗口函数上限和下限为<code>0</code>，例如将<code>0 preceding</code>修改为<code>current row</code></p>
+<ol>
+<li><code>case when</code>类型不一致，在2.1会报错</li>
+</ol>
+<p>解决方法：将<code>case when</code>里类型转换为一致。</p>
+<h3 id="2-3-总结"><a href="#2-3-总结" class="headerlink" title="2.3 总结"></a>2.3 总结</h3><p>语法兼容性问题，可以提前拿到线上一段时间的SQL语句，启动一个<code>2.1</code>版本的HiveServer2，<br>然后去批量Explain去校验是否存在语法兼容性问题，从而把问题解决到<code>事前</code>。<br>我们这边的做法通过客户端自定义的<code>Hook</code>和<code>Dr-elephant</code>等工具能很方便的拿到线上所有的SQL语句，<br>同时将<code>获取线上SQL</code>、<code>批量Explain检查</code>、<code>错误分析</code>等步骤，融合成一个Hive/Spark新功能上线前的回归测试工具来使用。</p>
+<h2 id="3-Hive2-1新feature"><a href="#3-Hive2-1新feature" class="headerlink" title="3. Hive2.1新feature"></a>3. Hive2.1新feature</h2><h3 id="3-1-ORC-amp-Parquet"><a href="#3-1-ORC-amp-Parquet" class="headerlink" title="3.1 ORC&amp;Parquet"></a>3.1 ORC&amp;Parquet</h3><p>Hive0.13对于2.1产生的ORC文件，存在读取兼容性问题。</p>
+<p>hive2.xx之前，ORC存在一个UGI错误的bug比较严重，在HiveServer2里会遇到，<br>原因是ORCReader使用了多线程加载ORC文件的footer，而UGI的机制是不能跨线程的。相关issue：</p>
+<p>另外hive2.xx之前，Parquet也存在诸多的bug。可以参考社区相关的issue。</p>
+<p>文件格式的选择上，目前可参考的范例有：</p>
+<ul>
+<li>Uber: Parquert + snappy</li>
+<li>Linkedin: ORC + zlib</li>
+<li>Didi: ORC + zlib</li>
+<li>GrowingIO: ORC + zlib</li>
+</ul>
+<p>我们倾向于主要文件格式选择parquet，因为ORC和Parquet测试下来速度差不多，但是Spark对于ORC的支持比较不好。</p>
+<p>至于压缩算法的选择，我们倾向于对不同场景选择不同的压缩算法，<br>例如对数仓的<code>ODS</code>层，数据量很大，使用频率很低，考虑使用zlib压缩算法，达到最高压缩比。<br>而<code>DM</code>层，数据量小且访问频率高，则考虑使用snappy压缩算法，在压缩比和解压缩速度之间取一个tradeoff。<br>目前文件格式和压缩算法的选择正在测试上线阶段。</p>
+<h3 id="3-2-CBO"><a href="#3-2-CBO" class="headerlink" title="3.2 CBO"></a>3.2 CBO</h3><p>目前我们还在测试阶段。原因是CBO会在某一些SQL语句解析时候报错<code>Assert Error</code>。<br>另外CBO的适用场景主要在于Join顺序的选择上，这个还需要在自己的线上场景上进行测试一番。</p>
+<h3 id="3-3-向量化执行"><a href="#3-3-向量化执行" class="headerlink" title="3.3 向量化执行"></a>3.3 向量化执行</h3><p>Hive的向量化执行目前只支持ORC文件格式，Parquet支持正在开发。在文件格式推广前效果不大。</p>
+<h3 id="3-4-Hive-On-Spark-Tez"><a href="#3-4-Hive-On-Spark-Tez" class="headerlink" title="3.4 Hive On Spark/Tez"></a>3.4 Hive On Spark/Tez</h3><p>目前看来社区还不成熟，目前发现只有Uber在维护和使用。</p>
+<p>Tez目前更加冷清，之前用过一些效果还是很不错的，但是一直没有火起来。</p>
+<p>我们的方法是用SparkSQL来加速部分的ETL语句，目前我们已经把SparkSQL<br>对原来HiveSQL的<code>语法兼容性</code>和<code>运行成功率</code>做到<code>92%+</code>，这样让我们的线上ETL SQL可以更加平滑低成本进行迁移。</p>
+<p>我们在Spark上进行的一些工作会有专门文章进行详细介绍。</p>
+<h3 id="3-5-其他"><a href="#3-5-其他" class="headerlink" title="3.5 其他"></a>3.5 其他</h3><p>Hive2.1提供了大量的bug修复。除了上面提到的还有：</p>
+<ol>
+<li>HiveServer2的Heap和PermGen内存泄露问题。</li>
+<li>大量存储类型bug修复。参考社区的issue list。</li>
+</ol>
+<h2 id="4-UDF兼容性"><a href="#4-UDF兼容性" class="headerlink" title="4. UDF兼容性"></a>4. UDF兼容性</h2><ol>
+<li><code>trim</code>函数在2.1不支持string之外的类型。</li>
+</ol>
+<p>0.13支持，但是2.1不支持，想要兼容的拷贝0.13代码就可以解决。</p>
+<ol>
+<li><code>date_add</code>和<code>date_sub</code>函数2.1和0.13返回的类型不一致</li>
+</ol>
+<p>2.1之前返回<code>String</code>类型，2.1之后返回<code>date</code>类型。如果where语句中有<code>data_add</code>函数与String比较，可能导致数据查询不出来。<br>想要兼容的话，可以回滚到0.13版本的date_add和date_sub代码。具体请参考<a href="https://cwiki.apache.org/confluence/display/Hive/LanguageManual+UDF#LanguageManualUDF-DateFunctions" target="_blank" rel="external">HiveUDF Date Functions</a></p>
+<h2 id="5-Hive2-1存在的一些问题"><a href="#5-Hive2-1存在的一些问题" class="headerlink" title="5. Hive2.1存在的一些问题"></a>5. Hive2.1存在的一些问题</h2><h3 id="5-1-Hive-Schema-Version问题"><a href="#5-1-Hive-Schema-Version问题" class="headerlink" title="5.1 Hive Schema Version问题"></a>5.1 Hive Schema Version问题</h3><p>如果元数据与Hive版本不同步升级，或用到Spark，因为Spark依赖的Hive默认是1.2.1。所以元数据也中的VERSION表，<br>会被改来改去，导致各种报错，例如：<code>MetaException(message:Hive Schema version 2.1.0 does not match metastore&#39;s schema version 1.2.0 Metastore is not upgraded or corrupt)</code></p>
+<p>一种方法是设置<code>hive.metastore.schema.verification=false</code>。</p>
+<p>还有一种彻底的方法是把Hive启动时候<code>检查Schema的功能</code>屏蔽掉。</p>
+<h3 id="5-2-Metastore-Server内存泄露问题"><a href="#5-2-Metastore-Server内存泄露问题" class="headerlink" title="5.2 Metastore Server内存泄露问题"></a>5.2 Metastore Server内存泄露问题</h3><p>BoneCP+DirectSql开启时候Metastore Server内存泄露问题，<br>参考HIVE-15551，这个issue在2.2才完全解决，在Metastore Server端长期运行可能遇到，可以提前打patch来解决。</p>
+<h3 id="5-3-HiveServer2的多用户模拟问题"><a href="#5-3-HiveServer2的多用户模拟问题" class="headerlink" title="5.3 HiveServer2的多用户模拟问题"></a>5.3 HiveServer2的多用户模拟问题</h3><p>2.1后的HS2模拟多用户代码里，UGI的impersonation方式从<code>CreateRemoteUser</code>变为<code>CreateProxyUser</code>。</p>
+<p>好处是可以获取到代理用户和被代理用户的信息，缺点是这种机制需要在<code>Namenode端为每个被代理用户进行配置</code>。<br>具体请参考：<a href="https://hadoop.apache.org/docs/r2.7.2/hadoop-project-dist/hadoop-common/Superusers.html" target="_blank" rel="external">Hadoop Impersonation</a></p>
+<p>如果不想这么麻烦，可以从CreateProxyUser回滚到CreateRemoteUser的方式，可以参考Hive1.2.1代码。</p>
+<h3 id="5-4-HiveServer2的operationlog不打印到客户端问题"><a href="#5-4-HiveServer2的operationlog不打印到客户端问题" class="headerlink" title="5.4 HiveServer2的operationlog不打印到客户端问题"></a>5.4 HiveServer2的operationlog不打印到客户端问题</h3><p>参考<a href="https://issues.apache.org/jira/browse/HIVE-14183" target="_blank" rel="external">HIVE-14183</a>，<br>设置<code>hive.async.log.enabled=false</code>来解决。</p>
+<h3 id="5-5-Hive客户端PermGen-OOM的问题"><a href="#5-5-Hive客户端PermGen-OOM的问题" class="headerlink" title="5.5 Hive客户端PermGen OOM的问题"></a>5.5 Hive客户端PermGen OOM的问题</h3><p>hive-env.sh设置<code>export HADOOP_OPTS=&quot;$HADOOP_OPTS -XX:MaxPermSize=128m&quot;</code>解决。</p>
+<h3 id="5-6-HiveServer2的性能问题"><a href="#5-6-HiveServer2的性能问题" class="headerlink" title="5.6 HiveServer2的性能问题"></a>5.6 HiveServer2的性能问题</h3><p><code>hive.driver.parallel.compilation=true</code>，默认为false，HS2只允许同时一个Query编译，<br>有操作元数据比较多的查询编译读取元数据会比较慢，会卡住所有其他查询。<br>打开允许多个Query同时编译。</p>
+<h3 id="5-7-基于Database的Stats收集策略被弃用"><a href="#5-7-基于Database的Stats收集策略被弃用" class="headerlink" title="5.7 基于Database的Stats收集策略被弃用"></a>5.7 基于Database的Stats收集策略被弃用</h3><p>Hive2.1的Stats只能使用基于HDFS的策略，而StatsTask是单线程运行读取HDFS上的统计文件（文件数量等于Mapper数量），因为HDFS抖动导致了很多性能问题。<br>极端情况下，发现过一个statsTask会执行1个小时之久。</p>
+<p>我们正在考虑把<code>Stats Task</code>禁掉，或者切换回基于Database的Stats收集策略。</p>
+<h3 id="5-8-Column-Pruning时候导致列顺序错误问题"><a href="#5-8-Column-Pruning时候导致列顺序错误问题" class="headerlink" title="5.8 Column Pruning时候导致列顺序错误问题"></a>5.8 Column Pruning时候导致列顺序错误问题</h3><p>Column Pruning时候导致列顺序错误，造成处理时候ArrayIndexOutOfBoundsException。<br>在一些复杂的SQL里增加limit会发生，参考<a href="https://issues.apache.org/jira/browse/HIVE-14564" target="_blank" rel="external">HIVE-14564</a>来解决。</p>
+<h3 id="5-9-我们Team回馈社区的一些patch"><a href="#5-9-我们Team回馈社区的一些patch" class="headerlink" title="5.9 我们Team回馈社区的一些patch"></a>5.9 我们Team回馈社区的一些patch</h3><ol>
+<li>Alter table Cascade时候的NPE问题：<a href="https://issues.apache.org/jira/browse/HIVE-16877" target="_blank" rel="external">HIVE-16877</a></li>
+<li>Drop掉分区后执行insert overwrite报错问题（这个问题比较严重，有可能不报错，但是会引入脏数据）：<a href="https://issues.apache.org/jira/browse/HIVE-17063" target="_blank" rel="external">HIVE-17063</a></li>
+<li>非当前库内Alter partition的异常问题：<a href="https://issues.apache.org/jira/browse/HIVE-17309" target="_blank" rel="external">HIVE-17309</a></li>
+</ol>
+<h2 id="6-其他一些踩过的坑"><a href="#6-其他一些踩过的坑" class="headerlink" title="6. 其他一些踩过的坑"></a>6. 其他一些踩过的坑</h2><h3 id="6-1-元数据数据库连接数打满问题"><a href="#6-1-元数据数据库连接数打满问题" class="headerlink" title="6.1 元数据数据库连接数打满问题"></a>6.1 元数据数据库连接数打满问题</h3><p>元数据直连数据库方式下，当并发服务量非常巨大时候，MySQL默认连接数是4000，比较容易打满。</p>
+<p>解决方法：</p>
+<ol>
+<li><p>直连使用BoneCP连接池方式下，<code>maxConnectionsPerPartition</code>默认值为10，一个客户端会建立20个连接，可以降低为2，并且降低连接池的活跃度。<br>可以考虑在<code>$HIVE_CONF_DIR</code>下增加一个<code>bonecp-config.xml</code>：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line">&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;</div><div class="line">&lt;bonecp-config&gt;</div><div class="line"> &lt;default-config&gt;</div><div class="line">        &lt;property name=&quot;maxConnectionAgeInSeconds&quot;&gt;5&lt;/property&gt;</div><div class="line">        &lt;property name=&quot;acquireIncrement&quot;&gt;1&lt;/property&gt;</div><div class="line">        &lt;property name=&quot;maxConnectionsPerPartition&quot;&gt;2&lt;/property&gt;</div><div class="line">        &lt;property name=&quot;lazyInit&quot;&gt;true&lt;/property&gt;</div><div class="line"> &lt;/default-config&gt;</div><div class="line">&lt;/bonecp-config&gt;</div></pre></td></tr></table></figure>
+</li>
+<li><p>提升数据库连接数最大值，可能会有稳定性风险。</p>
+</li>
+<li>使用Metastore Server，这是比较通用的做法，一个Metastore Server扛<code>10000</code>个客户端连接，后端400个数据库连接毫无压力。</li>
+</ol>
+<h2 id="7-升级流程总结"><a href="#7-升级流程总结" class="headerlink" title="7. 升级流程总结"></a>7. 升级流程总结</h2><p>总结之前的分析，从Hive0.13升级到2.1，升级过程可以达到<code>完全灰度和平滑</code>。</p>
+<p>具体的升级流程如下：</p>
+<ol>
+<li>元数据schema备份。</li>
+<li>提前批量校验线上SQL，解决语法兼容性问题。</li>
+<li>元数据只升级hive-13076中的脚本，建立<code>KEY_CONSTRAINTS</code>表和表上的索引。</li>
+<li>定制Hive代码，根据使用场景解决2.1里面存在的UDF和其他的一些问题。</li>
+<li>开始灰度升级Hive 2.1客户端，HiveServer2，最后是Metastore Server。</li>
+<li>Hive2.1客户端稳定后，根据需要部分或者全量来将元数据schema升级到2.1.1版本。</li>
+<li>最后依次升级Hive JDBC客户端。（非必需）</li>
+</ol>
+<h2 id="8-附录"><a href="#8-附录" class="headerlink" title="8. 附录"></a>8. 附录</h2><h3 id="8-1-Hive1-2之后新版本新增的关键字"><a href="#8-1-Hive1-2之后新版本新增的关键字" class="headerlink" title="8.1 Hive1.2之后新版本新增的关键字"></a>8.1 Hive1.2之后新版本新增的关键字</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div></pre></td><td class="code"><pre><div class="line">xlateMap.put(&quot;KW_OFFSET&quot;, &quot;OFFSET&quot;);</div><div class="line">xlateMap.put(&quot;KW_SUBQUERY&quot;, &quot;SUBQUERY&quot;);</div><div class="line">xlateMap.put(&quot;KW_REWRITE&quot;, &quot;REWRITE&quot;);</div><div class="line">xlateMap.put(&quot;KW_UPDATE&quot;, &quot;UPDATE&quot;);</div><div class="line">xlateMap.put(&quot;KW_VALUES&quot;, &quot;VALUES&quot;);</div><div class="line">xlateMap.put(&quot;KW_PURGE&quot;, &quot;PURGE&quot;);</div><div class="line">xlateMap.put(&quot;KW_PRIMARY&quot;, &quot;PRIMARY&quot;);</div><div class="line">xlateMap.put(&quot;KW_FOREIGN&quot;, &quot;FOREIGN&quot;);</div><div class="line">xlateMap.put(&quot;KW_KEY&quot;, &quot;KEY&quot;);</div><div class="line">xlateMap.put(&quot;KW_REFERENCES&quot;, &quot;REFERENCES&quot;);</div><div class="line">xlateMap.put(&quot;KW_CONSTRAINT&quot;, &quot;CONSTRAINT&quot;);</div><div class="line">xlateMap.put(&quot;KW_ENABLE&quot;, &quot;ENABLE&quot;);</div><div class="line">xlateMap.put(&quot;KW_DISABLE&quot;, &quot;DISABLE&quot;);</div><div class="line">xlateMap.put(&quot;KW_VALIDATE&quot;, &quot;VALIDATE&quot;);</div><div class="line">xlateMap.put(&quot;KW_NOVALIDATE&quot;, &quot;NOVALIDATE&quot;);</div><div class="line">xlateMap.put(&quot;KW_RELY&quot;, &quot;RELY&quot;);</div><div class="line">xlateMap.put(&quot;KW_NORELY&quot;, &quot;NORELY&quot;);</div><div class="line">xlateMap.put(&quot;KW_ABORT&quot;, &quot;ABORT&quot;);</div><div class="line">xlateMap.put(&quot;KW_TRANSACTIONS&quot;, &quot;TRANSACTIONS&quot;);</div><div class="line"></div><div class="line">TOK_NULLS_FIRST;</div><div class="line">TOK_NULLS_LAST;</div><div class="line">TOK_REPLICATION;</div><div class="line">TOK_METADATA;</div><div class="line">TOK_PRIMARY_KEY;</div><div class="line">TOK_FOREIGN_KEY;</div><div class="line">TOK_VALIDATE;</div><div class="line">TOK_NOVALIDATE;</div><div class="line">TOK_RELY;</div><div class="line">TOK_NORELY;</div><div class="line">TOK_TIMESTAMPLITERAL;</div><div class="line">TOK_INTERVAL_YEAR_MONTH;</div><div class="line">TOK_INTERVAL_YEAR_MONTH_LITERAL;</div><div class="line">TOK_INTERVAL_DAY_TIME;</div><div class="line">TOK_INTERVAL_DAY_TIME_LITERAL;</div><div class="line">TOK_INTERVAL_YEAR_LITERAL;</div><div class="line">TOK_INTERVAL_MONTH_LITERAL;</div><div class="line">TOK_INTERVAL_DAY_LITERAL;</div><div class="line">TOK_INTERVAL_HOUR_LITERAL;</div><div class="line">TOK_INTERVAL_MINUTE_LITERAL;</div><div class="line">TOK_INTERVAL_SECOND_LITERAL;</div></pre></td></tr></table></figure>
+<h3 id="8-2-Hive-JDBC和HiveServer2各版本之间兼容性"><a href="#8-2-Hive-JDBC和HiveServer2各版本之间兼容性" class="headerlink" title="8.2 Hive JDBC和HiveServer2各版本之间兼容性"></a>8.2 Hive JDBC和HiveServer2各版本之间兼容性</h3><table>
+<thead>
+<tr>
+<th>name</th>
+<th>server0.13</th>
+<th>server1.2</th>
+<th>server2.1</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>jdbc0.13</td>
+<td>兼容</td>
+<td>兼容</td>
+<td>兼容</td>
+</tr>
+<tr>
+<td>jdbc1.2.1</td>
+<td>兼容</td>
+<td>兼容</td>
+<td>兼容</td>
+</tr>
+<tr>
+<td>jdbc2.1.0</td>
+<td>兼容</td>
+<td>兼容</td>
+<td>兼容</td>
+</tr>
+<tr>
+<td>jdbc2.1.1</td>
+<td>不兼容</td>
+<td>不兼容</td>
+<td>兼容</td>
+</tr>
+</tbody>
+</table>
+<h3 id="8-3-从0-13开始的元数据Schema升级明细和影响分析"><a href="#8-3-从0-13开始的元数据Schema升级明细和影响分析" class="headerlink" title="8.3 从0.13开始的元数据Schema升级明细和影响分析"></a>8.3 从0.13开始的元数据Schema升级明细和影响分析</h3><figure class="highlight sql"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div><div class="line">98</div><div class="line">99</div><div class="line">100</div><div class="line">101</div><div class="line">102</div><div class="line">103</div><div class="line">104</div><div class="line">105</div><div class="line">106</div><div class="line">107</div><div class="line">108</div><div class="line">109</div><div class="line">110</div><div class="line">111</div><div class="line">112</div><div class="line">113</div><div class="line">114</div><div class="line">115</div><div class="line">116</div><div class="line">117</div><div class="line">118</div><div class="line">119</div><div class="line">120</div><div class="line">121</div><div class="line">122</div><div class="line">123</div><div class="line">124</div><div class="line">125</div><div class="line">126</div><div class="line">127</div><div class="line">128</div><div class="line">129</div><div class="line">130</div><div class="line">131</div><div class="line">132</div><div class="line">133</div><div class="line">134</div><div class="line">135</div><div class="line">136</div><div class="line">137</div><div class="line">138</div><div class="line">139</div><div class="line">140</div><div class="line">141</div><div class="line">142</div><div class="line">143</div><div class="line">144</div><div class="line">145</div><div class="line">146</div><div class="line">147</div><div class="line">148</div><div class="line">149</div><div class="line">150</div><div class="line">151</div><div class="line">152</div><div class="line">153</div><div class="line">154</div><div class="line">155</div><div class="line">156</div><div class="line">157</div><div class="line">158</div><div class="line">159</div><div class="line">160</div><div class="line">161</div><div class="line">162</div><div class="line">163</div><div class="line">164</div><div class="line">165</div><div class="line">166</div><div class="line">167</div><div class="line">168</div><div class="line">169</div><div class="line">170</div><div class="line">171</div><div class="line">172</div><div class="line">173</div><div class="line">174</div><div class="line">175</div><div class="line">176</div><div class="line">177</div><div class="line">178</div><div class="line">179</div><div class="line">180</div><div class="line">181</div><div class="line">182</div><div class="line">183</div><div class="line">184</div><div class="line">185</div><div class="line">186</div><div class="line">187</div><div class="line">188</div><div class="line">189</div><div class="line">190</div><div class="line">191</div><div class="line">192</div><div class="line">193</div><div class="line">194</div><div class="line">195</div><div class="line">196</div><div class="line">197</div><div class="line">198</div><div class="line">199</div><div class="line">200</div><div class="line">201</div><div class="line">202</div><div class="line">203</div><div class="line">204</div><div class="line">205</div><div class="line">206</div><div class="line">207</div><div class="line">208</div><div class="line">209</div><div class="line">210</div><div class="line">211</div><div class="line">212</div></pre></td><td class="code"><pre><div class="line"></div><div class="line"><span class="comment">--****0.13.0 to 0.14.0****</span></div><div class="line"><span class="comment">--1. hive-7784 非必须</span></div><div class="line"><span class="comment">--hive-8715 这张表在0.13.1环境已经存在，升级过程只需要加一个索引</span></div><div class="line"><span class="keyword">CREATE</span> <span class="keyword">TABLE</span> <span class="keyword">IF</span> <span class="keyword">NOT</span> <span class="keyword">EXISTS</span> <span class="string">`PART_COL_STATS`</span> (</div><div class="line"> <span class="string">`CS_ID`</span> <span class="built_in">bigint</span>(<span class="number">20</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line"> <span class="string">`DB_NAME`</span> <span class="built_in">varchar</span>(<span class="number">128</span>) <span class="built_in">CHARACTER</span> <span class="keyword">SET</span> latin1 <span class="keyword">COLLATE</span> latin1_bin <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line"> <span class="string">`TABLE_NAME`</span> <span class="built_in">varchar</span>(<span class="number">128</span>) <span class="built_in">CHARACTER</span> <span class="keyword">SET</span> latin1 <span class="keyword">COLLATE</span> latin1_bin <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line"> <span class="string">`PARTITION_NAME`</span> <span class="built_in">varchar</span>(<span class="number">767</span>) <span class="built_in">CHARACTER</span> <span class="keyword">SET</span> latin1 <span class="keyword">COLLATE</span> latin1_bin <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line"> <span class="string">`COLUMN_NAME`</span> <span class="built_in">varchar</span>(<span class="number">128</span>) <span class="built_in">CHARACTER</span> <span class="keyword">SET</span> latin1 <span class="keyword">COLLATE</span> latin1_bin <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line"> <span class="string">`COLUMN_TYPE`</span> <span class="built_in">varchar</span>(<span class="number">128</span>) <span class="built_in">CHARACTER</span> <span class="keyword">SET</span> latin1 <span class="keyword">COLLATE</span> latin1_bin <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line"> <span class="string">`PART_ID`</span> <span class="built_in">bigint</span>(<span class="number">20</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line"> <span class="string">`LONG_LOW_VALUE`</span> <span class="built_in">bigint</span>(<span class="number">20</span>),</div><div class="line"> <span class="string">`LONG_HIGH_VALUE`</span> <span class="built_in">bigint</span>(<span class="number">20</span>),</div><div class="line"> <span class="string">`DOUBLE_HIGH_VALUE`</span> <span class="keyword">double</span>(<span class="number">53</span>,<span class="number">4</span>),</div><div class="line"> <span class="string">`DOUBLE_LOW_VALUE`</span> <span class="keyword">double</span>(<span class="number">53</span>,<span class="number">4</span>),</div><div class="line"> <span class="string">`BIG_DECIMAL_LOW_VALUE`</span> <span class="built_in">varchar</span>(<span class="number">4000</span>) <span class="built_in">CHARACTER</span> <span class="keyword">SET</span> latin1 <span class="keyword">COLLATE</span> latin1_bin,</div><div class="line"> <span class="string">`BIG_DECIMAL_HIGH_VALUE`</span> <span class="built_in">varchar</span>(<span class="number">4000</span>) <span class="built_in">CHARACTER</span> <span class="keyword">SET</span> latin1 <span class="keyword">COLLATE</span> latin1_bin,</div><div class="line"> <span class="string">`NUM_NULLS`</span> <span class="built_in">bigint</span>(<span class="number">20</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line"> <span class="string">`NUM_DISTINCTS`</span> <span class="built_in">bigint</span>(<span class="number">20</span>),</div><div class="line"> <span class="string">`AVG_COL_LEN`</span> <span class="keyword">double</span>(<span class="number">53</span>,<span class="number">4</span>),</div><div class="line"> <span class="string">`MAX_COL_LEN`</span> <span class="built_in">bigint</span>(<span class="number">20</span>),</div><div class="line"> <span class="string">`NUM_TRUES`</span> <span class="built_in">bigint</span>(<span class="number">20</span>),</div><div class="line"> <span class="string">`NUM_FALSES`</span> <span class="built_in">bigint</span>(<span class="number">20</span>),</div><div class="line"> <span class="string">`LAST_ANALYZED`</span> <span class="built_in">bigint</span>(<span class="number">20</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line">  PRIMARY <span class="keyword">KEY</span> (<span class="string">`CS_ID`</span>),</div><div class="line">  <span class="keyword">CONSTRAINT</span> <span class="string">`PART_COL_STATS_FK`</span> FOREIGN <span class="keyword">KEY</span> (<span class="string">`PART_ID`</span>) <span class="keyword">REFERENCES</span> <span class="string">`PARTITIONS`</span> (<span class="string">`PART_ID`</span>)</div><div class="line">) <span class="keyword">ENGINE</span>=<span class="keyword">InnoDB</span> <span class="keyword">DEFAULT</span> <span class="keyword">CHARSET</span>=latin1;</div><div class="line"></div><div class="line"><span class="keyword">CREATE</span> <span class="keyword">INDEX</span> PCS_STATS_IDX <span class="keyword">ON</span> PART_COL_STATS (DB_NAME,TABLE_NAME,COLUMN_NAME,PARTITION_NAME) <span class="keyword">USING</span> BTREE;</div><div class="line"></div><div class="line"><span class="comment">--****0.14.0 to 1.1.0****</span></div><div class="line"><span class="comment">--2. hive-9296 非必须修改</span></div><div class="line"><span class="comment">--Hcatalog Notification会使用到这张表，否则用不到。参考： https://issues.apache.org/jira/browse/HIVE-9174</span></div><div class="line"><span class="comment">--Hcatalog Notification的机制允许修改表和分区等事件广播，允许下游消费者来消费。具体请参考：</span></div><div class="line"><span class="comment">--https://cwiki.apache.org/confluence/display/Hive/HCatalog+Notification</span></div><div class="line"><span class="keyword">CREATE</span> <span class="keyword">TABLE</span> <span class="keyword">IF</span> <span class="keyword">NOT</span> <span class="keyword">EXISTS</span> <span class="string">`NOTIFICATION_LOG`</span></div><div class="line">(</div><div class="line">    <span class="string">`NL_ID`</span> <span class="built_in">BIGINT</span>(<span class="number">20</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line">    <span class="string">`EVENT_ID`</span> <span class="built_in">BIGINT</span>(<span class="number">20</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line">    <span class="string">`EVENT_TIME`</span> <span class="built_in">INT</span>(<span class="number">11</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line">    <span class="string">`EVENT_TYPE`</span> <span class="built_in">varchar</span>(<span class="number">32</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line">    <span class="string">`DB_NAME`</span> <span class="built_in">varchar</span>(<span class="number">128</span>),</div><div class="line">    <span class="string">`TBL_NAME`</span> <span class="built_in">varchar</span>(<span class="number">128</span>),</div><div class="line">    <span class="string">`MESSAGE`</span> mediumtext,</div><div class="line">    PRIMARY <span class="keyword">KEY</span> (<span class="string">`NL_ID`</span>)</div><div class="line">) <span class="keyword">ENGINE</span>=<span class="keyword">InnoDB</span> <span class="keyword">DEFAULT</span> <span class="keyword">CHARSET</span>=latin1;</div><div class="line"><span class="comment">--同上</span></div><div class="line"><span class="keyword">CREATE</span> <span class="keyword">TABLE</span> <span class="keyword">IF</span> <span class="keyword">NOT</span> <span class="keyword">EXISTS</span> <span class="string">`NOTIFICATION_SEQUENCE`</span></div><div class="line">(</div><div class="line">    <span class="string">`NNI_ID`</span> <span class="built_in">BIGINT</span>(<span class="number">20</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line">    <span class="string">`NEXT_EVENT_ID`</span> <span class="built_in">BIGINT</span>(<span class="number">20</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line">    PRIMARY <span class="keyword">KEY</span> (<span class="string">`NNI_ID`</span>)</div><div class="line">) <span class="keyword">ENGINE</span>=<span class="keyword">InnoDB</span> <span class="keyword">DEFAULT</span> <span class="keyword">CHARSET</span>=latin1;</div><div class="line"></div><div class="line"><span class="comment">--****1.1.0 to 1.2.0****</span></div><div class="line"><span class="comment">--no op</span></div><div class="line"></div><div class="line"><span class="comment">--****1.2.0 to 2.0.0****</span></div><div class="line"><span class="comment">--3. hive-7018，非必须修改</span></div><div class="line"><span class="comment">--删除 TBLS表和PARTITIONS表上的LINK_TARGET_ID列：https://issues.apache.org/jira/browse/HIVE-7018</span></div><div class="line"><span class="comment">--Hive只有在0.10之前会用到这个列。之后版本，如果没有使用schemaTool建表（线上0.13.1就没有用到），这列没有被建出来，因而这列也不需要删除。另外，本身保留也没有副作用。</span></div><div class="line"><span class="comment">--脚本本身有是否含有列的判断，因此执行也没有副作用。</span></div><div class="line"><span class="keyword">SELECT</span> <span class="string">'&lt; HIVE-7018 Remove Table and Partition tables column LINK_TARGET_ID from Mysql for other DBs do not have it &gt;'</span> <span class="keyword">AS</span> <span class="string">' '</span>;</div><div class="line">DELIMITER $$</div><div class="line"><span class="keyword">DROP</span> <span class="keyword">PROCEDURE</span> <span class="keyword">IF</span> <span class="keyword">EXISTS</span> RM_TLBS_LINKID $$</div><div class="line"><span class="keyword">DROP</span> <span class="keyword">PROCEDURE</span> <span class="keyword">IF</span> <span class="keyword">EXISTS</span> RM_PARTITIONS_LINKID $$</div><div class="line"><span class="keyword">DROP</span> <span class="keyword">PROCEDURE</span> <span class="keyword">IF</span> <span class="keyword">EXISTS</span> RM_LINKID $$</div><div class="line"><span class="comment">/* Call this procedure to drop column LINK_TARGET_ID for TBLS */</span></div><div class="line"><span class="keyword">CREATE</span> <span class="keyword">PROCEDURE</span> RM_TLBS_LINKID()</div><div class="line">  <span class="keyword">BEGIN</span></div><div class="line">    <span class="keyword">IF</span> <span class="keyword">EXISTS</span> (<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> <span class="string">`INFORMATION_SCHEMA`</span>.<span class="string">`COLUMNS`</span> <span class="keyword">WHERE</span> <span class="string">`TABLE_NAME`</span> = <span class="string">'TBLS'</span> <span class="keyword">AND</span> <span class="string">`COLUMN_NAME`</span> = <span class="string">'LINK_TARGET_ID'</span>) <span class="keyword">THEN</span></div><div class="line">      <span class="keyword">ALTER</span> <span class="keyword">TABLE</span> <span class="string">`TBLS`</span></div><div class="line">        <span class="keyword">DROP</span> FOREIGN <span class="keyword">KEY</span> <span class="string">`TBLS_FK3`</span></div><div class="line">      ;</div><div class="line">      <span class="keyword">ALTER</span> <span class="keyword">TABLE</span> <span class="string">`TBLS`</span></div><div class="line">        <span class="keyword">DROP</span> <span class="keyword">KEY</span> <span class="string">`TBLS_N51`</span></div><div class="line">      ;</div><div class="line">      <span class="keyword">ALTER</span> <span class="keyword">TABLE</span> <span class="string">`TBLS`</span></div><div class="line">        <span class="keyword">DROP</span> <span class="keyword">COLUMN</span> <span class="string">`LINK_TARGET_ID`</span></div><div class="line">      ;</div><div class="line">    <span class="keyword">END</span> <span class="keyword">IF</span>;</div><div class="line">  <span class="keyword">END</span> $$x</div><div class="line"><span class="comment">/* Call this procedure to drop column LINK_TARGET_ID for PARTITIONS */</span></div><div class="line"><span class="keyword">CREATE</span> <span class="keyword">PROCEDURE</span> RM_PARTITIONS_LINKID()</div><div class="line">  <span class="keyword">BEGIN</span></div><div class="line">    <span class="keyword">IF</span> <span class="keyword">EXISTS</span> (<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> <span class="string">`INFORMATION_SCHEMA`</span>.<span class="string">`COLUMNS`</span> <span class="keyword">WHERE</span> <span class="string">`TABLE_NAME`</span> = <span class="string">'PARTITIONS'</span> <span class="keyword">AND</span> <span class="string">`COLUMN_NAME`</span> = <span class="string">'LINK_TARGET_ID'</span>) <span class="keyword">THEN</span></div><div class="line">      <span class="keyword">ALTER</span> <span class="keyword">TABLE</span> <span class="string">`PARTITIONS`</span></div><div class="line">        <span class="keyword">DROP</span> FOREIGN <span class="keyword">KEY</span> <span class="string">`PARTITIONS_FK3`</span></div><div class="line">      ;</div><div class="line">      <span class="keyword">ALTER</span> <span class="keyword">TABLE</span> <span class="string">`PARTITIONS`</span></div><div class="line">        <span class="keyword">DROP</span> <span class="keyword">KEY</span> <span class="string">`PARTITIONS_N51`</span></div><div class="line">      ;</div><div class="line">      <span class="keyword">ALTER</span> <span class="keyword">TABLE</span> <span class="string">`PARTITIONS`</span></div><div class="line">        <span class="keyword">DROP</span> <span class="keyword">COLUMN</span> <span class="string">`LINK_TARGET_ID`</span></div><div class="line">      ;</div><div class="line">    <span class="keyword">END</span> <span class="keyword">IF</span>;</div><div class="line">  <span class="keyword">END</span> $$</div><div class="line"><span class="comment">/*</span></div><div class="line"> * Check and drop column LINK_TARGET_ID</div><div class="line"> */</div><div class="line"><span class="keyword">CREATE</span> <span class="keyword">PROCEDURE</span> RM_LINKID()</div><div class="line">  <span class="keyword">BEGIN</span></div><div class="line">    <span class="keyword">call</span> RM_PARTITIONS_LINKID();</div><div class="line">    <span class="keyword">call</span> RM_TLBS_LINKID();</div><div class="line">    <span class="keyword">SELECT</span> <span class="string">'Completed remove LINK_TARGET_ID'</span>;</div><div class="line">  <span class="keyword">END</span> $$</div><div class="line"></div><div class="line">DELIMITER ;</div><div class="line"><span class="keyword">CALL</span> RM_LINKID();</div><div class="line"></div><div class="line"><span class="comment">--4. hive-11970 非必须修改。</span></div><div class="line"><span class="comment">--某些情况下一些列名称非常长，例如avro导出的列名，所以需要增加COLUMN_NAME的长度，从128增加到767</span></div><div class="line"><span class="comment">--参考：https://issues.apache.org/jira/browse/HIVE-11970</span></div><div class="line"><span class="keyword">ALTER</span> <span class="keyword">TABLE</span> <span class="string">`COLUMNS_V2`</span> <span class="keyword">MODIFY</span> <span class="string">`COLUMN_NAME`</span> <span class="built_in">varchar</span>(<span class="number">767</span>) <span class="built_in">CHARACTER</span> <span class="keyword">SET</span> latin1 <span class="keyword">COLLATE</span> latin1_bin <span class="keyword">NOT</span> <span class="literal">NULL</span>;</div><div class="line"><span class="keyword">ALTER</span> <span class="keyword">TABLE</span> <span class="string">`PART_COL_PRIVS`</span> <span class="keyword">MODIFY</span> <span class="string">`COLUMN_NAME`</span> <span class="built_in">varchar</span>(<span class="number">767</span>) <span class="built_in">CHARACTER</span> <span class="keyword">SET</span> latin1 <span class="keyword">COLLATE</span> latin1_bin <span class="keyword">DEFAULT</span> <span class="literal">NULL</span>;</div><div class="line"><span class="keyword">ALTER</span> <span class="keyword">TABLE</span> <span class="string">`TBL_COL_PRIVS`</span> <span class="keyword">MODIFY</span> <span class="string">`COLUMN_NAME`</span> <span class="built_in">varchar</span>(<span class="number">767</span>) <span class="built_in">CHARACTER</span> <span class="keyword">SET</span> latin1 <span class="keyword">COLLATE</span> latin1_bin <span class="keyword">DEFAULT</span> <span class="literal">NULL</span>;</div><div class="line"><span class="keyword">ALTER</span> <span class="keyword">TABLE</span> <span class="string">`SORT_COLS`</span> <span class="keyword">MODIFY</span> <span class="string">`COLUMN_NAME`</span> <span class="built_in">varchar</span>(<span class="number">767</span>) <span class="built_in">CHARACTER</span> <span class="keyword">SET</span> latin1 <span class="keyword">COLLATE</span> latin1_bin <span class="keyword">DEFAULT</span> <span class="literal">NULL</span>;</div><div class="line"><span class="keyword">ALTER</span> <span class="keyword">TABLE</span> <span class="string">`TAB_COL_STATS`</span> <span class="keyword">MODIFY</span> <span class="string">`COLUMN_NAME`</span> <span class="built_in">varchar</span>(<span class="number">767</span>) <span class="built_in">CHARACTER</span> <span class="keyword">SET</span> latin1 <span class="keyword">COLLATE</span> latin1_bin <span class="keyword">NOT</span> <span class="literal">NULL</span>;</div><div class="line"><span class="keyword">ALTER</span> <span class="keyword">TABLE</span> <span class="string">`PART_COL_STATS`</span> <span class="keyword">MODIFY</span> <span class="string">`COLUMN_NAME`</span> <span class="built_in">varchar</span>(<span class="number">767</span>) <span class="built_in">CHARACTER</span> <span class="keyword">SET</span> latin1 <span class="keyword">COLLATE</span> latin1_bin <span class="keyword">NOT</span> <span class="literal">NULL</span>;</div><div class="line"><span class="comment">--5. hive-12807 非必须修改。NOTICE：元数据升级时候可能报错，因为COMPACTION_QUEUE表可能未被创建</span></div><div class="line"><span class="comment">--当通过配置启用hive事务时候使用到，默认事务不启用。具体是增加字段记录事务序列中的一些信息。</span></div><div class="line"><span class="comment">--参考：https://issues.apache.org/jira/browse/HIVE-12352</span></div><div class="line"><span class="keyword">ALTER</span> <span class="keyword">TABLE</span> <span class="string">`COMPACTION_QUEUE`</span> <span class="keyword">ADD</span> <span class="string">`CQ_HIGHEST_TXN_ID`</span> <span class="built_in">bigint</span>;</div><div class="line"><span class="comment">--6. hive-12814 非必须修改</span></div><div class="line"><span class="comment">--当通过配置启用hive事务时候使用到，默认事务不启用。具体是增加字段，记录compaction时候的一些统计信息。</span></div><div class="line"><span class="comment">--参考：https://issues.apache.org/jira/browse/HIVE-11444</span></div><div class="line"><span class="keyword">ALTER</span> <span class="keyword">TABLE</span> <span class="string">`COMPACTION_QUEUE`</span> <span class="keyword">ADD</span> <span class="string">`CQ_META_INFO`</span> varbinary(<span class="number">2048</span>);</div><div class="line"><span class="comment">--7. hive-12816 非必须修改</span></div><div class="line"><span class="comment">--当通过配置启用hive事务时候使用到，默认事务不启用。具体是增加字段，保存compaction时候的MR作业id，防止metastore重启时候无法kill过期作业。</span></div><div class="line"><span class="comment">--参考：https://issues.apache.org/jira/browse/HIVE-11685</span></div><div class="line"><span class="keyword">ALTER</span> <span class="keyword">TABLE</span> <span class="string">`COMPACTION_QUEUE`</span> <span class="keyword">ADD</span> <span class="string">`CQ_HADOOP_JOB_ID`</span> <span class="built_in">varchar</span>(<span class="number">32</span>);</div><div class="line"><span class="comment">--8. hive-12818 非必须修改</span></div><div class="line"><span class="comment">--当通过配置启用hive事务时候使用到，默认事务不启用。</span></div><div class="line"><span class="comment">--参考：https://issues.apache.org/jira/browse/HIVE-12353</span></div><div class="line"><span class="keyword">CREATE</span> <span class="keyword">TABLE</span> COMPLETED_COMPACTIONS (</div><div class="line">  CC_ID <span class="built_in">bigint</span> PRIMARY <span class="keyword">KEY</span>,</div><div class="line">  CC_DATABASE <span class="built_in">varchar</span>(<span class="number">128</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line">  CC_TABLE <span class="built_in">varchar</span>(<span class="number">128</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line">  CC_PARTITION <span class="built_in">varchar</span>(<span class="number">767</span>),</div><div class="line">  CC_STATE <span class="built_in">char</span>(<span class="number">1</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line">  CC_TYPE <span class="built_in">char</span>(<span class="number">1</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line">  CC_WORKER_ID <span class="built_in">varchar</span>(<span class="number">128</span>),</div><div class="line">  CC_START <span class="built_in">bigint</span>,</div><div class="line">  CC_END <span class="built_in">bigint</span>,</div><div class="line">  CC_RUN_AS <span class="built_in">varchar</span>(<span class="number">128</span>),</div><div class="line">  CC_HIGHEST_TXN_ID <span class="built_in">bigint</span>,</div><div class="line">  CC_META_INFO varbinary(<span class="number">2048</span>),</div><div class="line">  CC_HADOOP_JOB_ID <span class="built_in">varchar</span>(<span class="number">32</span>)</div><div class="line">) <span class="keyword">ENGINE</span>=<span class="keyword">InnoDB</span> <span class="keyword">DEFAULT</span> <span class="keyword">CHARSET</span>=latin1;</div><div class="line"><span class="comment">--9. hive-12819 非必须修改</span></div><div class="line"><span class="comment">--当通过配置启用hive事务时候使用到，默认事务不启用。具体是增加show transactions时候的输出信息。</span></div><div class="line"><span class="comment">--参考：https://issues.apache.org/jira/browse/HIVE-12353</span></div><div class="line"><span class="keyword">ALTER</span> <span class="keyword">TABLE</span> <span class="string">`TXNS`</span> <span class="keyword">ADD</span> <span class="string">`TXN_AGENT_INFO`</span> <span class="built_in">varchar</span>(<span class="number">128</span>);</div><div class="line"><span class="comment">--10. hive-12821 非必须修改</span></div><div class="line"><span class="comment">--当通过配置启用hive事务时候使用到，默认事务不启用。</span></div><div class="line"><span class="comment">--参考：https://issues.apache.org/jira/browse/HIVE-11965</span></div><div class="line"><span class="keyword">ALTER</span> <span class="keyword">TABLE</span> <span class="string">`TXNS`</span> <span class="keyword">ADD</span> <span class="string">`TXN_HEARTBEAT_COUNT`</span> <span class="built_in">int</span>;</div><div class="line"><span class="keyword">ALTER</span> <span class="keyword">TABLE</span> <span class="string">`HIVE_LOCKS`</span> <span class="keyword">ADD</span> <span class="string">`HL_HEARTBEAT_COUNT`</span> <span class="built_in">int</span>;</div><div class="line"><span class="comment">--11. hive-12822 非必须修改，同上</span></div><div class="line"><span class="keyword">ALTER</span> <span class="keyword">TABLE</span> <span class="string">`TXNS`</span> <span class="keyword">ADD</span> <span class="string">`TXN_META_INFO`</span> <span class="built_in">varchar</span>(<span class="number">128</span>);</div><div class="line"><span class="comment">--12. hive-12823 非必须修改，同上</span></div><div class="line"><span class="keyword">ALTER</span> <span class="keyword">TABLE</span> <span class="string">`HIVE_LOCKS`</span> <span class="keyword">ADD</span> <span class="string">`HL_AGENT_INFO`</span> <span class="built_in">varchar</span>(<span class="number">128</span>);</div><div class="line"><span class="comment">--13. hive-12831 非必须修改，同上</span></div><div class="line"><span class="keyword">ALTER</span> <span class="keyword">TABLE</span> <span class="string">`HIVE_LOCKS`</span> <span class="keyword">ADD</span> <span class="string">`HL_BLOCKEDBY_EXT_ID`</span> <span class="built_in">bigint</span>;</div><div class="line"><span class="keyword">ALTER</span> <span class="keyword">TABLE</span> <span class="string">`HIVE_LOCKS`</span> <span class="keyword">ADD</span> <span class="string">`HL_BLOCKEDBY_INT_ID`</span> <span class="built_in">bigint</span>;</div><div class="line"><span class="comment">--14. hive-12832 非必须修改，同上</span></div><div class="line"><span class="keyword">CREATE</span> <span class="keyword">TABLE</span> AUX_TABLE (</div><div class="line">  MT_KEY1 <span class="built_in">varchar</span>(<span class="number">128</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line">  MT_KEY2 <span class="built_in">bigint</span> <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line">  MT_COMMENT <span class="built_in">varchar</span>(<span class="number">255</span>),</div><div class="line">  PRIMARY <span class="keyword">KEY</span>(MT_KEY1, MT_KEY2)</div><div class="line">) <span class="keyword">ENGINE</span>=<span class="keyword">InnoDB</span> <span class="keyword">DEFAULT</span> <span class="keyword">CHARSET</span>=latin1;</div><div class="line"><span class="comment">--****2.0.0 to 2.1.0****</span></div><div class="line"><span class="comment">--15. hive-13076 从代码上看不影响，但是涉及到建表和修改表操作，另外建议先打上补丁</span></div><div class="line"><span class="comment">--让hive支持表级别主键和外键，从而可以在CBO时候优化执行计划。目前完成了主键和外键的存储，CBO使用主键和外键功能还未开发完成。</span></div><div class="line"><span class="comment">--语法：CREATE TABLE vendor( vendor_id int, PRIMARY KEY (vendor_id)  DISABLE NOVALIDATE RELY);</span></div><div class="line"><span class="comment">--CREATE TABLE product ( product_id int, product_vendor_id int, PRIMARY KEY (product_id)  DISABLE NOVALIDATE, CONSTRAINT product_fk_1 FOREIGN KEY (product_vendor_id) REFERENCES vendor(vendor_id)  DISABLE NOVALIDATE);</span></div><div class="line"><span class="comment">--参考：https://issues.apache.org/jira/browse/HIVE-13350</span></div><div class="line"><span class="keyword">CREATE</span> <span class="keyword">TABLE</span> <span class="keyword">IF</span> <span class="keyword">NOT</span> <span class="keyword">EXISTS</span> <span class="string">`KEY_CONSTRAINTS`</span></div><div class="line">(</div><div class="line">  <span class="string">`CHILD_CD_ID`</span> <span class="built_in">BIGINT</span>,</div><div class="line">  <span class="string">`CHILD_INTEGER_IDX`</span> <span class="built_in">INT</span>(<span class="number">11</span>),</div><div class="line">  <span class="string">`CHILD_TBL_ID`</span> <span class="built_in">BIGINT</span>,</div><div class="line">  <span class="string">`PARENT_CD_ID`</span> <span class="built_in">BIGINT</span> <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line">  <span class="string">`PARENT_INTEGER_IDX`</span> <span class="built_in">INT</span>(<span class="number">11</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line">  <span class="string">`PARENT_TBL_ID`</span> <span class="built_in">BIGINT</span> <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line">  <span class="string">`POSITION`</span> <span class="built_in">BIGINT</span> <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line">  <span class="string">`CONSTRAINT_NAME`</span> <span class="built_in">VARCHAR</span>(<span class="number">400</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line">  <span class="string">`CONSTRAINT_TYPE`</span> <span class="built_in">SMALLINT</span>(<span class="number">6</span>)  <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line">  <span class="string">`UPDATE_RULE`</span> <span class="built_in">SMALLINT</span>(<span class="number">6</span>),</div><div class="line">  <span class="string">`DELETE_RULE`</span> <span class="built_in">SMALLINT</span>(<span class="number">6</span>),</div><div class="line">  <span class="string">`ENABLE_VALIDATE_RELY`</span> <span class="built_in">SMALLINT</span>(<span class="number">6</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line">  PRIMARY <span class="keyword">KEY</span> (<span class="string">`CONSTRAINT_NAME`</span>, <span class="string">`POSITION`</span>)</div><div class="line">) <span class="keyword">ENGINE</span>=<span class="keyword">InnoDB</span> <span class="keyword">DEFAULT</span> <span class="keyword">CHARSET</span>=latin1;</div><div class="line"><span class="keyword">CREATE</span> <span class="keyword">INDEX</span> <span class="string">`CONSTRAINTS_PARENT_TABLE_ID_INDEX`</span> <span class="keyword">ON</span> KEY_CONSTRAINTS (<span class="string">`PARENT_TBL_ID`</span>) <span class="keyword">USING</span> BTREE;</div><div class="line"><span class="comment">--16. hive-13395 不必须修改</span></div><div class="line"><span class="comment">--当通过配置启用hive事务时候使用到，默认事务不启用。</span></div><div class="line"><span class="comment">--参考：https://issues.apache.org/jira/browse/HIVE-13395</span></div><div class="line"><span class="keyword">CREATE</span> <span class="keyword">TABLE</span> WRITE_SET (</div><div class="line">  WS_DATABASE <span class="built_in">varchar</span>(<span class="number">128</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line">  WS_TABLE <span class="built_in">varchar</span>(<span class="number">128</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line">  WS_PARTITION <span class="built_in">varchar</span>(<span class="number">767</span>),</div><div class="line">  WS_TXNID <span class="built_in">bigint</span> <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line">  WS_COMMIT_ID <span class="built_in">bigint</span> <span class="keyword">NOT</span> <span class="literal">NULL</span>,</div><div class="line">  WS_OPERATION_TYPE <span class="built_in">char</span>(<span class="number">1</span>) <span class="keyword">NOT</span> <span class="literal">NULL</span></div><div class="line">) <span class="keyword">ENGINE</span>=<span class="keyword">InnoDB</span> <span class="keyword">DEFAULT</span> <span class="keyword">CHARSET</span>=latin1;</div><div class="line"><span class="keyword">ALTER</span> <span class="keyword">TABLE</span> TXN_COMPONENTS <span class="keyword">ADD</span> TC_OPERATION_TYPE <span class="built_in">char</span>(<span class="number">1</span>);</div><div class="line"><span class="comment">--17. hive-13354 不必须修改</span></div><div class="line"><span class="comment">--当通过配置启用hive事务时候使用到，默认事务不启用。</span></div><div class="line"><span class="keyword">ALTER</span> <span class="keyword">TABLE</span> COMPACTION_QUEUE <span class="keyword">ADD</span> CQ_TBLPROPERTIES <span class="built_in">varchar</span>(<span class="number">2048</span>);</div><div class="line"><span class="keyword">ALTER</span> <span class="keyword">TABLE</span> COMPLETED_COMPACTIONS <span class="keyword">ADD</span> CC_TBLPROPERTIES <span class="built_in">varchar</span>(<span class="number">2048</span>);</div></pre></td></tr></table></figure>
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/Hive/" rel="tag"># Hive</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2016/12/25/Namenode内存分析/" rel="next" title="Namenode内存分析">
+                <i class="fa fa-chevron-left"></i> Namenode内存分析
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+        
+<script>
+  with(document)0[(getElementsByTagName('head')[0]||body).appendChild(createElement('script')).src='//bdimg.share.baidu.com/static/api/js/share.js?cdnversion='+~(-new Date()/36e5)];
+</script>
+
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+  <div class="comments" id="comments">
+    
+      <div id="disqus_thread">
+        <noscript>
+          Please enable JavaScript to view the
+          <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a>
+        </noscript>
+      </div>
+    
+  </div>
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap" >
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+          
+            <img class="site-author-image" itemprop="image"
+              src="/images/avatar.jpg"
+              alt="Wang Haihua" />
+          
+            <p class="site-author-name" itemprop="name">Wang Haihua</p>
+            <p class="site-description motion-element" itemprop="description">学习总结 思考感悟 知识总结</p>
+        </div>
+
+        <nav class="site-state motion-element">
+
+          
+            <div class="site-state-item site-state-posts">
+            
+              <a href="/archives/">
+            
+                <span class="site-state-item-count">8</span>
+                <span class="site-state-item-name">日志</span>
+              </a>
+            </div>
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-categories">
+              <a href="/categories/index.html">
+                <span class="site-state-item-count">12</span>
+                <span class="site-state-item-name">分类</span>
+              </a>
+            </div>
+          
+
+          
+            
+            
+            <div class="site-state-item site-state-tags">
+              <a href="/tags/index.html">
+                <span class="site-state-item-count">13</span>
+                <span class="site-state-item-name">标签</span>
+              </a>
+            </div>
+          
+
+        </nav>
+
+        
+
+        <div class="links-of-author motion-element">
+          
+            
+              <span class="links-of-author-item">
+                <a href="https://github.com/ericsahit" target="_blank" title="GitHub">
+                  
+                    <i class="fa fa-fw fa-globe"></i>GitHub</a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="https://www.zhihu.com/people/wang-hai-hua-96" target="_blank" title="Zhihu">
+                  
+                    <i class="fa fa-fw fa-globe"></i>Zhihu</a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="https://www.linkedin.com/in/wang-haihua-022b3687/" target="_blank" title="Linkedin">
+                  
+                    <i class="fa fa-fw fa-globe"></i>Linkedin</a>
+              </span>
+            
+          
+        </div>
+
+        
+        
+
+        
+        
+
+        
+
+
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#Hive0-13到2-1跨版本升级全姿势"><span class="nav-number">1.</span> <span class="nav-text">Hive0.13到2.1跨版本升级全姿势</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-元数据"><span class="nav-number">1.1.</span> <span class="nav-text">1. 元数据</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-1-建议修改：hive-13076（涉及到建表和修改表）"><span class="nav-number">1.1.1.</span> <span class="nav-text">1.1 建议修改：hive-13076（涉及到建表和修改表）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-2-事务-Hive-Transaction-相关修改（不启用Hive事务则不需要）"><span class="nav-number">1.1.2.</span> <span class="nav-text">1.2. 事务(Hive Transaction)相关修改（不启用Hive事务则不需要）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-3-Hcatalog相关修改（不使用Hcatalog则不需要）"><span class="nav-number">1.1.3.</span> <span class="nav-text">1.3. Hcatalog相关修改（不使用Hcatalog则不需要）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-4-其他非关键修改（一些特殊场景使用到）"><span class="nav-number">1.1.4.</span> <span class="nav-text">1.4. 其他非关键修改（一些特殊场景使用到）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#总结"><span class="nav-number">1.1.5.</span> <span class="nav-text">总结</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-语法兼容性"><span class="nav-number">1.2.</span> <span class="nav-text">2. 语法兼容性</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#2-1-Hive新增保留字问题"><span class="nav-number">1.2.1.</span> <span class="nav-text">2.1 Hive新增保留字问题</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#2-1-1-新增预留字"><span class="nav-number">1.2.1.1.</span> <span class="nav-text">2.1.1 新增预留字</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-1-2-新增关键字"><span class="nav-number">1.2.1.2.</span> <span class="nav-text">2.1.2 新增关键字</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-2-其他兼容性问题和解决方法"><span class="nav-number">1.2.2.</span> <span class="nav-text">2.2 其他兼容性问题和解决方法</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-3-总结"><span class="nav-number">1.2.3.</span> <span class="nav-text">2.3 总结</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-Hive2-1新feature"><span class="nav-number">1.3.</span> <span class="nav-text">3. Hive2.1新feature</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#3-1-ORC-amp-Parquet"><span class="nav-number">1.3.1.</span> <span class="nav-text">3.1 ORC&Parquet</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-2-CBO"><span class="nav-number">1.3.2.</span> <span class="nav-text">3.2 CBO</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-3-向量化执行"><span class="nav-number">1.3.3.</span> <span class="nav-text">3.3 向量化执行</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-4-Hive-On-Spark-Tez"><span class="nav-number">1.3.4.</span> <span class="nav-text">3.4 Hive On Spark/Tez</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-5-其他"><span class="nav-number">1.3.5.</span> <span class="nav-text">3.5 其他</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-UDF兼容性"><span class="nav-number">1.4.</span> <span class="nav-text">4. UDF兼容性</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-Hive2-1存在的一些问题"><span class="nav-number">1.5.</span> <span class="nav-text">5. Hive2.1存在的一些问题</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#5-1-Hive-Schema-Version问题"><span class="nav-number">1.5.1.</span> <span class="nav-text">5.1 Hive Schema Version问题</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-2-Metastore-Server内存泄露问题"><span class="nav-number">1.5.2.</span> <span class="nav-text">5.2 Metastore Server内存泄露问题</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-3-HiveServer2的多用户模拟问题"><span class="nav-number">1.5.3.</span> <span class="nav-text">5.3 HiveServer2的多用户模拟问题</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-4-HiveServer2的operationlog不打印到客户端问题"><span class="nav-number">1.5.4.</span> <span class="nav-text">5.4 HiveServer2的operationlog不打印到客户端问题</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-5-Hive客户端PermGen-OOM的问题"><span class="nav-number">1.5.5.</span> <span class="nav-text">5.5 Hive客户端PermGen OOM的问题</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-6-HiveServer2的性能问题"><span class="nav-number">1.5.6.</span> <span class="nav-text">5.6 HiveServer2的性能问题</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-7-基于Database的Stats收集策略被弃用"><span class="nav-number">1.5.7.</span> <span class="nav-text">5.7 基于Database的Stats收集策略被弃用</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-8-Column-Pruning时候导致列顺序错误问题"><span class="nav-number">1.5.8.</span> <span class="nav-text">5.8 Column Pruning时候导致列顺序错误问题</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-9-我们Team回馈社区的一些patch"><span class="nav-number">1.5.9.</span> <span class="nav-text">5.9 我们Team回馈社区的一些patch</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#6-其他一些踩过的坑"><span class="nav-number">1.6.</span> <span class="nav-text">6. 其他一些踩过的坑</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#6-1-元数据数据库连接数打满问题"><span class="nav-number">1.6.1.</span> <span class="nav-text">6.1 元数据数据库连接数打满问题</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#7-升级流程总结"><span class="nav-number">1.7.</span> <span class="nav-text">7. 升级流程总结</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#8-附录"><span class="nav-number">1.8.</span> <span class="nav-text">8. 附录</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#8-1-Hive1-2之后新版本新增的关键字"><span class="nav-number">1.8.1.</span> <span class="nav-text">8.1 Hive1.2之后新版本新增的关键字</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#8-2-Hive-JDBC和HiveServer2各版本之间兼容性"><span class="nav-number">1.8.2.</span> <span class="nav-text">8.2 Hive JDBC和HiveServer2各版本之间兼容性</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#8-3-从0-13开始的元数据Schema升级明细和影响分析"><span class="nav-number">1.8.3.</span> <span class="nav-text">8.3 从0.13开始的元数据Schema升级明细和影响分析</span></a></li></ol></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright" >
+  
+  &copy; 
+  <span itemprop="copyrightYear">2017</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Wang Haihua</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+  <span class="post-meta-divider">|</span>
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" href="https://github.com/iissnan/hexo-theme-next">NexT.Mist</a> v5.1.2</div>
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+
+  
+  <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+
+  
+  <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.2"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.2"></script>
+
+
+
+  
+  
+
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.2"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.2"></script>
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.2"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.2"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.2"></script>
+
+
+
+  
+
+
+  
+
+    
+      <script id="dsq-count-scr" src="https://haihuawang.disqus.com/count.js" async></script>
+    
+
+    
+      <script type="text/javascript">
+        var disqus_config = function () {
+          this.page.url = 'http://yoursite.com/2017/09/10/Hive升级全姿势/';
+          this.page.identifier = '2017/09/10/Hive升级全姿势/';
+          this.page.title = 'Hive升级全姿势';
+        };
+        var d = document, s = d.createElement('script');
+        s.src = 'https://haihuawang.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', '' + +new Date());
+        (d.head || d.body).appendChild(s);
+      </script>
+    
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
